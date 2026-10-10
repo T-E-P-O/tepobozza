@@ -1,5 +1,7 @@
 # TEPO — Trento Energy Portfolio Optimizer
 
+[![CI](https://github.com/mirconegri/tepobozza/actions/workflows/ci.yml/badge.svg)](https://github.com/mirconegri/tepobozza/actions/workflows/ci.yml)
+
 Decision Support System per la selezione di portafogli di interventi di efficientamento energetico sugli edifici comunali.
 
 **Principio architetturale:** L'AI propone. L'utente confronta. Il Comune decide.
