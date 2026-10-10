@@ -1,0 +1,95 @@
+:root {
+  --tepo-blue: #1f3a5f;
+  --tepo-blue-light: #2e5d94;
+  --tepo-green: #2f7d5f;
+  --tepo-bg: #f6f8fb;
+  --tepo-border: #d5dce6;
+  --tepo-text: #1c2530;
+  --tepo-muted: #5a6673;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--tepo-bg);
+  color: var(--tepo-text);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 12px 24px;
+  background: var(--tepo-blue);
+  color: white;
+}
+
+.brand { display: flex; flex-direction: column; }
+.brand strong { font-size: 20px; letter-spacing: 1px; }
+.brand span { font-size: 12px; opacity: 0.85; }
+
+.topbar nav { display: flex; gap: 16px; flex: 1; }
+.topbar nav a { color: white; text-decoration: none; font-size: 14px; }
+.topbar nav a:hover { text-decoration: underline; }
+
+.demo-badge {
+  background: #f5c518;
+  color: #1c2530;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+main { padding: 24px; }
+
+.card {
+  background: white;
+  border: 1px solid var(--tepo-border);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.kpi {
+  background: white;
+  border: 1px solid var(--tepo-border);
+  border-radius: 8px;
+  padding: 12px;
+}
+.kpi .label { font-size: 12px; color: var(--tepo-muted); }
+.kpi .value { font-size: 20px; font-weight: 600; margin-top: 4px; }
+
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--tepo-border); }
+th { font-size: 12px; color: var(--tepo-muted); text-transform: uppercase; }
+
+button {
+  background: var(--tepo-blue-light);
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+button:hover { background: var(--tepo-blue); }
+
+input, select {
+  padding: 8px;
+  border: 1px solid var(--tepo-border);
+  border-radius: 6px;
+  font-size: 14px;
+  width: 100%;
+}
+
+label { display: block; margin-bottom: 12px; font-size: 14px; }
+label > span { display: block; margin-bottom: 4px; color: var(--tepo-muted); }
