@@ -9,6 +9,7 @@ import ScenarioBuilder from './pages/ScenarioBuilder';
 import ResultPage from './pages/ResultPage';
 import ComparePage from './pages/ComparePage';
 import ImportPage from './pages/ImportPage';
+import ThemeToggle from './components/ThemeToggle';
 import './styles/tokens.css';
 import './styles/base.css';
 import './styles/components.css';
@@ -32,6 +33,7 @@ function App() {
           <Link to="/compare">Confronto</Link>
           <Link to="/import">Import</Link>
         </nav>
+        <ThemeToggle />
         <div className="demo-badge">DEMO — dati sintetici</div>
       </header>
       <main>

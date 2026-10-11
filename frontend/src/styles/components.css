@@ -367,3 +367,24 @@
   outline: var(--focus-ring-width) solid var(--color-focus-ring);
   outline-offset: var(--focus-ring-offset);
 }
+
+
+/* ---- Variante per pulsanti su sfondo scuro/brand (es. topbar) ---- */
+
+.tepo-button--inverse {
+  background-color: transparent;
+  color: rgba(255, 255, 255, 0.85);
+  border-color: transparent;
+}
+
+.tepo-button--inverse:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.tepo-button--inverse:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.75);
+  outline-offset: 2px;
+}
+
+
