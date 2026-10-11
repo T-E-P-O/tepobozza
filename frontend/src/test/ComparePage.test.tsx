@@ -75,9 +75,21 @@ describe('ComparePage', () => {
 
     renderWithRouter(<ComparePage />);
 
+    // Heading principale
     await waitFor(() => {
-      expect(screen.getByText(/Scenario A/i)).toBeInTheDocument();
-      expect(screen.getByText(/Scenario B/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /Confronto scenari/i })).toBeInTheDocument();
     });
+
+    // Intestazioni delle colonne della tabella metriche (univoche)
+    expect(screen.getByRole('columnheader', { name: 'Scenario A' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Scenario B' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Metrica' })).toBeInTheDocument();
+
+    // Sezioni differenze
+    expect(screen.getByRole('heading', { name: /Interventi aggiunti in B/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Interventi rimossi in B/i })).toBeInTheDocument();
+
+    // Almeno due tabelle (metriche + differenze)
+    expect(screen.getAllByRole('table').length).toBeGreaterThanOrEqual(2);
   });
 });
