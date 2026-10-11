@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, CircleMarker } from 'react-leaflet';
+import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { fetchBuildings, fetchInterventions } from '../services/api';
@@ -26,9 +26,9 @@ export default function MapPage() {
     if (last) setResult(last.result);
   }, []);
 
-  const optionsFor = (buildingId: string) => options.filter((o) => o.buildingId === buildingId);
+  const optionsFor = (buildingId: string) =>
+    options.filter((o) => o.buildingId === buildingId);
 
-  // Per ogni edificio: ha interventi selezionati? esclusi?
   const buildingHasSelected = (buildingId: string) => {
     if (!result) return false;
     const ids = optionsFor(buildingId).map((o) => o.id);
@@ -42,17 +42,34 @@ export default function MapPage() {
   };
 
   const colorFor = (buildingId: string): string => {
-    if (!result) return '#2e5d94'; // blu neutro
-    if (buildingHasSelected(buildingId) && !buildingHasExcluded(buildingId)) return '#2f7d5f'; // verde
-    if (buildingHasSelected(buildingId) && buildingHasExcluded(buildingId)) return '#f5a623'; // arancio misto
-    if (buildingHasExcluded(buildingId)) return '#9aa5b1'; // grigio
+    if (!result) return '#2e5d94';
+    if (buildingHasSelected(buildingId) && !buildingHasExcluded(buildingId)) return '#2f7d5f';
+    if (buildingHasSelected(buildingId) && buildingHasExcluded(buildingId)) return '#f5a623';
+    if (buildingHasExcluded(buildingId)) return '#9aa5b1';
     return '#2e5d94';
   };
 
+  const selectedBuilding = selected ? buildings.find((b) => b.id === selected) : null;
+
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 16, height: 'calc(100vh - 140px)' }}>
-      <div className="card" style={{ padding: 0, overflow: 'hidden', position: 'relative' }}>
-        <MapContainer center={[46.0679, 11.1211]} zoom={14} style={{ height: '100%', width: '100%' }}>
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'minmax(0, 1fr) 360px',
+        gap: 'var(--space-4)',
+        height: 'calc(100vh - 140px)'
+      }}
+    >
+      {/* ---- Mappa ---- */}
+      <div
+        className="tepo-card"
+        style={{ padding: 0, overflow: 'hidden', position: 'relative' }}
+      >
+        <MapContainer
+          center={[46.0679, 11.1211]}
+          zoom={14}
+          style={{ height: '100%', width: '100%' }}
+        >
           <TileLayer
             attribution='&copy; OpenStreetMap'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -76,47 +93,128 @@ export default function MapPage() {
           ))}
         </MapContainer>
 
-        {/* Legenda */}
-        <div style={{
-          position: 'absolute', bottom: 16, left: 16, background: 'white',
-          padding: 10, borderRadius: 6, border: '1px solid var(--tepo-border)', fontSize: 12, zIndex: 1000
-        }}>
-          <div style={{ fontWeight: 600, marginBottom: 6 }}>Stato scenario</div>
-          <div><span style={{ display: 'inline-block', width: 12, height: 12, background: '#2f7d5f', marginRight: 6, borderRadius: 6 }}></span>Solo selezionati</div>
-          <div><span style={{ display: 'inline-block', width: 12, height: 12, background: '#f5a623', marginRight: 6, borderRadius: 6 }}></span>Selezionati + esclusi</div>
-          <div><span style={{ display: 'inline-block', width: 12, height: 12, background: '#9aa5b1', marginRight: 6, borderRadius: 6 }}></span>Solo esclusi</div>
-          <div><span style={{ display: 'inline-block', width: 12, height: 12, background: '#2e5d94', marginRight: 6, borderRadius: 6 }}></span>Non valutati</div>
+        {/* ---- Legenda ---- */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 'var(--space-4)',
+            left: 'var(--space-4)',
+            background: 'var(--color-surface)',
+            padding: 'var(--space-3)',
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid var(--color-border)',
+            fontSize: 'var(--font-size-xs)',
+            color: 'var(--color-text-secondary)',
+            boxShadow: 'var(--shadow-sm)',
+            zIndex: 1000,
+            lineHeight: 'var(--line-height-relaxed)'
+          }}
+        >
+          <div
+            style={{
+              fontWeight: 'var(--font-weight-semibold)',
+              color: 'var(--color-text-primary)',
+              marginBottom: 'var(--space-2)'
+            }}
+          >
+            Stato scenario
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+            <span style={{ width: 10, height: 10, background: '#2f7d5f', borderRadius: 5, display: 'inline-block' }} />
+            Solo selezionati
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+            <span style={{ width: 10, height: 10, background: '#f5a623', borderRadius: 5, display: 'inline-block' }} />
+            Selezionati + esclusi
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+            <span style={{ width: 10, height: 10, background: '#9aa5b1', borderRadius: 5, display: 'inline-block' }} />
+            Solo esclusi
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+            <span style={{ width: 10, height: 10, background: '#2e5d94', borderRadius: 5, display: 'inline-block' }} />
+            Non valutati
+          </div>
         </div>
       </div>
 
-      <aside className="card">
-        {selected ? (
+      {/* ---- Sidebar ---- */}
+      <aside className="tepo-card" style={{ overflowY: 'auto' }}>
+        {selectedBuilding ? (
           <>
-            <h3>{buildings.find((b) => b.id === selected)?.name}</h3>
-            <p>{buildings.find((b) => b.id === selected)?.address}</p>
-            <h4>Interventi disponibili</h4>
-            <table>
-              <thead><tr><th>Intervento</th><th>Costo</th><th>Stato</th></tr></thead>
+            <header style={{ marginBottom: 'var(--space-3)' }}>
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: 'var(--font-size-lg)',
+                  fontWeight: 'var(--font-weight-semibold)'
+                }}
+              >
+                {selectedBuilding.name}
+              </h2>
+              <p style={{ margin: 'var(--space-1) 0 0', color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>
+                {selectedBuilding.address}
+              </p>
+            </header>
+
+            <h3
+              style={{
+                fontSize: 'var(--font-size-sm)',
+                fontWeight: 'var(--font-weight-semibold)',
+                textTransform: 'uppercase',
+                letterSpacing: 'var(--letter-spacing-wide)',
+                color: 'var(--color-text-muted)',
+                margin: 'var(--space-3) 0 var(--space-2)'
+              }}
+            >
+              Interventi disponibili
+            </h3>
+
+            <table className="tepo-table tepo-table--compact">
+              <thead>
+                <tr>
+                  <th>Intervento</th>
+                  <th style={{ textAlign: 'right' }}>Costo</th>
+                  <th>Stato</th>
+                </tr>
+              </thead>
               <tbody>
-                {optionsFor(selected).map((o) => {
-                  let stato = '—';
+                {optionsFor(selectedBuilding.id).map((o) => {
+                  let statoLabel = '—';
+                  let statoClass = 'tepo-badge';
                   if (result) {
-                    if (result.selectedOptionsId.includes(o.id)) stato = 'Selezionato';
-                    else if (result.excludedOptionsId.includes(o.id)) stato = 'Escluso';
+                    if (result.selectedOptionsId.includes(o.id)) {
+                      statoLabel = 'Selezionato';
+                      statoClass = 'tepo-badge tepo-badge--success';
+                    } else if (result.excludedOptionsId.includes(o.id)) {
+                      statoLabel = 'Escluso';
+                      statoClass = 'tepo-badge tepo-badge--warning';
+                    }
                   }
                   return (
                     <tr key={o.id}>
                       <td>{o.name}</td>
-                      <td>€ {(o.investmentCostCents / 100).toLocaleString('it-IT')}</td>
-                      <td>{stato}</td>
+                      <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                        € {(o.investmentCostCents / 100).toLocaleString('it-IT')}
+                      </td>
+                      <td><span className={statoClass}>{statoLabel}</span></td>
                     </tr>
                   );
                 })}
+                {optionsFor(selectedBuilding.id).length === 0 && (
+                  <tr>
+                    <td colSpan={3} style={{ textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                      Nessun intervento disponibile.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </>
         ) : (
-          <p>Seleziona un edificio sulla mappa.</p>
+          <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>
+            Seleziona un edificio sulla mappa.
+          </p>
         )}
       </aside>
     </div>
