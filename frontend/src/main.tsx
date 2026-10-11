@@ -9,6 +9,9 @@ import ScenarioBuilder from './pages/ScenarioBuilder';
 import ResultPage from './pages/ResultPage';
 import ComparePage from './pages/ComparePage';
 import ImportPage from './pages/ImportPage';
+import './styles/tokens.css';
+import './styles/base.css';
+import './styles/components.css';
 import './index.css';
 
 function App() {

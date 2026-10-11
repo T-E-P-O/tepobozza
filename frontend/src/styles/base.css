@@ -1,0 +1,105 @@
+/* ==========================================================================
+   TEPO — Base styles
+   ==========================================================================
+   Regole globali conservative.
+   - Coerenti con il CSS esistente in frontend/src/index.css.
+   - Non ridefiniscono classi applicative (.card, .kpi, .topbar, ...).
+   - Non toccano button, input, select, table globali.
+   ========================================================================== */
+
+html {
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-normal);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-page);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* ---- Focus visibile (solo :focus-visible per non disturbare i click) ---- */
+
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus-ring);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
+}
+
+/* ---- Selezione testo ---- */
+
+::selection {
+  background-color: var(--color-brand-accent);
+  color: var(--color-text-inverse);
+}
+
+/* ---- Riduzione del movimento ---- */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---- Skip-link accessibile (predisposto, non usato finché non introdotto
+       nei componenti React in Fase B) ---- */
+
+.tepo-skip-link {
+  position: absolute;
+  top: -100px;
+  left: var(--space-4);
+  padding: var(--space-2) var(--space-4);
+  background-color: var(--color-brand-primary);
+  color: var(--color-text-inverse);
+  text-decoration: none;
+  border-radius: var(--radius-md);
+  z-index: 9999;
+  transition: top var(--transition-fast) var(--easing-standard);
+}
+
+.tepo-skip-link:focus {
+  top: var(--space-4);
+}
+
+/* ---- Solo per screen reader ---- */
+
+.tepo-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
