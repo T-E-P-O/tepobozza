@@ -67,31 +67,66 @@ export default function InterventionsPage() {
     setStatusFilter('ALL');
   };
 
-  return (
-    <>
-      <h1>Interventi candidati</h1>
-      <p style={{ color: 'var(--tepo-muted)' }}>
-        {result
-          ? 'Filtro applicato sull\'ultimo scenario eseguito.'
-          : 'Nessun scenario ancora eseguito: tutti gli interventi risultano "non valutati".'}
-      </p>
+  const statusBadge = (id: string) => {
+    const st = statusOf(id);
+    if (st === 'SELECTED') {
+      return <span className="tepo-badge tepo-badge--success">Selezionato</span>;
+    }
+    if (st === 'EXCLUDED') {
+      return <span className="tepo-badge tepo-badge--warning">Escluso</span>;
+    }
+    return <span className="tepo-badge">—</span>;
+  };
 
-      <div className="card">
-        <h3>Filtri</h3>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: 12,
-          marginBottom: 12
-        }}>
-          <label>
-            <span>Ricerca</span>
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="ID, nome, edificio, tipo" />
+  return (
+    <div className="tepo-stack tepo-stack--loose">
+      <header>
+        <h1
+          style={{
+            margin: 0,
+            fontSize: 'var(--font-size-3xl)',
+            fontWeight: 'var(--font-weight-semibold)'
+          }}
+        >
+          Interventi candidati
+        </h1>
+        <p style={{ margin: 'var(--space-1) 0 0', color: 'var(--color-text-secondary)' }}>
+          {result
+            ? 'Filtro applicato sull\'ultimo scenario eseguito.'
+            : 'Nessun scenario eseguito: tutti gli interventi risultano "non valutati".'}
+        </p>
+      </header>
+
+      {/* ---- Filtri ---- */}
+      <section className="tepo-card">
+        <div className="tepo-card__header">
+          <h2 className="tepo-card__title">Filtri</h2>
+        </div>
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+            gap: 'var(--space-3)'
+          }}
+        >
+          <label className="tepo-field">
+            <span className="tepo-field__label">Ricerca</span>
+            <input
+              className="tepo-input"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="ID, nome, edificio, tipo"
+            />
           </label>
 
-          <label>
-            <span>Edificio</span>
-            <select value={buildingFilter} onChange={(e) => setBuildingFilter(e.target.value)}>
+          <label className="tepo-field">
+            <span className="tepo-field__label">Edificio</span>
+            <select
+              className="tepo-select"
+              value={buildingFilter}
+              onChange={(e) => setBuildingFilter(e.target.value)}
+            >
               <option value="">Tutti</option>
               {buildings.map((b) => (
                 <option key={b.id} value={b.id}>{b.name}</option>
@@ -99,9 +134,13 @@ export default function InterventionsPage() {
             </select>
           </label>
 
-          <label>
-            <span>Tipo intervento</span>
-            <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+          <label className="tepo-field">
+            <span className="tepo-field__label">Tipo intervento</span>
+            <select
+              className="tepo-select"
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+            >
               <option value="">Tutti</option>
               {types.map((t) => (
                 <option key={t.id} value={t.id}>{t.name}</option>
@@ -109,21 +148,35 @@ export default function InterventionsPage() {
             </select>
           </label>
 
-          <label>
-            <span>Costo minimo (EUR)</span>
-            <input type="number" min={0} value={costMin}
-                   onChange={(e) => setCostMin(e.target.value === '' ? '' : Number(e.target.value))} />
+          <label className="tepo-field">
+            <span className="tepo-field__label">Costo minimo (EUR)</span>
+            <input
+              className="tepo-input"
+              type="number"
+              min={0}
+              value={costMin}
+              onChange={(e) => setCostMin(e.target.value === '' ? '' : Number(e.target.value))}
+            />
           </label>
 
-          <label>
-            <span>Costo massimo (EUR)</span>
-            <input type="number" min={0} value={costMax}
-                   onChange={(e) => setCostMax(e.target.value === '' ? '' : Number(e.target.value))} />
+          <label className="tepo-field">
+            <span className="tepo-field__label">Costo massimo (EUR)</span>
+            <input
+              className="tepo-input"
+              type="number"
+              min={0}
+              value={costMax}
+              onChange={(e) => setCostMax(e.target.value === '' ? '' : Number(e.target.value))}
+            />
           </label>
 
-          <label>
-            <span>Stato nello scenario</span>
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}>
+          <label className="tepo-field">
+            <span className="tepo-field__label">Stato nello scenario</span>
+            <select
+              className="tepo-select"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+            >
               <option value="ALL">Tutti</option>
               <option value="SELECTED">Selezionati</option>
               <option value="EXCLUDED">Esclusi</option>
@@ -132,54 +185,75 @@ export default function InterventionsPage() {
           </label>
         </div>
 
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          <button onClick={resetFilters}>Azzera filtri</button>
-          <span style={{ color: 'var(--tepo-muted)', fontSize: 14 }}>
+        <div className="tepo-card__footer" style={{ marginTop: 'var(--space-4)' }}>
+          <button className="tepo-button tepo-button--secondary tepo-button--sm" onClick={resetFilters}>
+            Azzera filtri
+          </button>
+          <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)' }}>
             {filtered.length} di {options.length} interventi
           </span>
         </div>
-      </div>
+      </section>
 
-      <div className="card">
-        <table>
-          <thead>
-            <tr>
-              <th>ID</th><th>Edificio</th><th>Intervento</th><th>Tipo</th>
-              <th>Costo</th><th>Risparmio energia</th>
-              <th>Risparmio economico</th><th>CO2</th><th>Stato</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((o) => {
-              const st = statusOf(o.id);
-              const stLabel = st === 'SELECTED' ? 'Selezionato'
-                : st === 'EXCLUDED' ? 'Escluso'
-                : '—';
-              const stColor = st === 'SELECTED' ? '#2f7d5f'
-                : st === 'EXCLUDED' ? '#9aa5b1'
-                : 'var(--tepo-muted)';
-              return (
+      {/* ---- Tabella ---- */}
+      <section className="tepo-card">
+        <div style={{ overflowX: 'auto' }}>
+          <table className="tepo-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Edificio</th>
+                <th>Intervento</th>
+                <th>Tipo</th>
+                <th style={{ textAlign: 'right' }}>Costo</th>
+                <th style={{ textAlign: 'right' }}>Risparmio energia</th>
+                <th style={{ textAlign: 'right' }}>Risparmio economico</th>
+                <th style={{ textAlign: 'right' }}>CO2</th>
+                <th>Stato</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((o) => (
                 <tr key={o.id}>
-                  <td>{o.id}</td>
+                  <td style={{ fontFamily: 'var(--font-family-mono)', fontSize: 'var(--font-size-xs)' }}>
+                    {o.id}
+                  </td>
                   <td>{buildingName(o.buildingId)}</td>
                   <td>{o.name}</td>
                   <td>{typeName(o.interventionTypeId)}</td>
-                  <td>€ {(o.investmentCostCents / 100).toLocaleString('it-IT')}</td>
-                  <td>{o.annualEnergySavingScaled.toLocaleString('it-IT')}</td>
-                  <td>€ {(o.annualEconomicSavingCents / 100).toLocaleString('it-IT')}</td>
-                  <td>{o.annualCo2ReductionScaled.toLocaleString('it-IT')} kg</td>
-                  <td style={{ color: stColor, fontWeight: 600 }}>{stLabel}</td>
+                  <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                    € {(o.investmentCostCents / 100).toLocaleString('it-IT')}
+                  </td>
+                  <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                    {o.annualEnergySavingScaled.toLocaleString('it-IT')}
+                  </td>
+                  <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                    € {(o.annualEconomicSavingCents / 100).toLocaleString('it-IT')}
+                  </td>
+                  <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                    {o.annualCo2ReductionScaled.toLocaleString('it-IT')} kg
+                  </td>
+                  <td>{statusBadge(o.id)}</td>
                 </tr>
-              );
-            })}
-            {filtered.length === 0 && (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--tepo-muted)', padding: 24 }}>
-                Nessun intervento corrisponde ai filtri.
-              </td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </>
+              ))}
+              {filtered.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={9}
+                    style={{
+                      textAlign: 'center',
+                      color: 'var(--color-text-muted)',
+                      padding: 'var(--space-6)'
+                    }}
+                  >
+                    Nessun intervento corrisponde ai filtri.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
   );
 }
