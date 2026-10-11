@@ -47,71 +47,145 @@ export default function BuildingsPage() {
     else { setSortKey(key); setSortAsc(true); }
   };
 
-  const arrow = (key: SortKey) => sortKey === key ? (sortAsc ? ' ▲' : ' ▼') : '';
+  const arrow = (key: SortKey) => (sortKey === key ? (sortAsc ? ' ▲' : ' ▼') : '');
 
   return (
-    <>
-      <h1>Edifici</h1>
+    <div className="tepo-stack tepo-stack--loose">
+      <header>
+        <h1
+          style={{
+            margin: 0,
+            fontSize: 'var(--font-size-3xl)',
+            fontWeight: 'var(--font-weight-semibold)'
+          }}
+        >
+          Edifici
+        </h1>
+        <p style={{ margin: 'var(--space-1) 0 0', color: 'var(--color-text-secondary)' }}>
+          Catalogo degli edifici demo. Tutti i dati sono sintetici.
+        </p>
+      </header>
 
-      <div className="card">
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: 12,
-          marginBottom: 12
-        }}>
-          <label>
-            <span>Ricerca</span>
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Nome o indirizzo" />
+      {/* ---- Filtri ---- */}
+      <section className="tepo-card">
+        <div className="tepo-card__header">
+          <h2 className="tepo-card__title">Filtri</h2>
+        </div>
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: 'var(--space-3)'
+          }}
+        >
+          <label className="tepo-field">
+            <span className="tepo-field__label">Ricerca</span>
+            <input
+              className="tepo-input"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Nome o indirizzo"
+            />
           </label>
-          <label>
-            <span>Tipo edificio</span>
-            <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+
+          <label className="tepo-field">
+            <span className="tepo-field__label">Tipo edificio</span>
+            <select
+              className="tepo-select"
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+            >
               <option value="">Tutti</option>
-              {types.map((t) => <option key={t} value={t}>{t}</option>)}
+              {types.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
             </select>
           </label>
         </div>
 
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          <button onClick={() => { setQuery(''); setTypeFilter(''); }}>Azzera filtri</button>
-          <span style={{ color: 'var(--tepo-muted)', fontSize: 14 }}>
+        <div className="tepo-card__footer" style={{ marginTop: 'var(--space-4)' }}>
+          <button
+            className="tepo-button tepo-button--secondary tepo-button--sm"
+            onClick={() => { setQuery(''); setTypeFilter(''); }}
+          >
+            Azzera filtri
+          </button>
+          <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)' }}>
             {filtered.length} di {buildings.length} edifici
           </span>
         </div>
-      </div>
+      </section>
 
-      <div className="card">
-        <table>
-          <thead>
-            <tr>
-              <th onClick={() => toggleSort('id')} style={{ cursor: 'pointer' }}>ID{arrow('id')}</th>
-              <th onClick={() => toggleSort('name')} style={{ cursor: 'pointer' }}>Nome{arrow('name')}</th>
-              <th>Indirizzo</th>
-              <th onClick={() => toggleSort('buildingType')} style={{ cursor: 'pointer' }}>Tipo{arrow('buildingType')}</th>
-              <th onClick={() => toggleSort('surfaceM2')} style={{ cursor: 'pointer' }}>Superficie{arrow('surfaceM2')}</th>
-              <th>Provenienza</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((b) => (
-              <tr key={b.id}>
-                <td>{b.id}</td>
-                <td>{b.name}</td>
-                <td>{b.address}</td>
-                <td>{b.buildingType}</td>
-                <td>{b.surfaceM2} m²</td>
-                <td>{b.provenance}</td>
+      {/* ---- Tabella ---- */}
+      <section className="tepo-card">
+        <div style={{ overflowX: 'auto' }}>
+          <table className="tepo-table">
+            <thead>
+              <tr>
+                <th
+                  onClick={() => toggleSort('id')}
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                >
+                  ID{arrow('id')}
+                </th>
+                <th
+                  onClick={() => toggleSort('name')}
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                >
+                  Nome{arrow('name')}
+                </th>
+                <th>Indirizzo</th>
+                <th
+                  onClick={() => toggleSort('buildingType')}
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                >
+                  Tipo{arrow('buildingType')}
+                </th>
+                <th
+                  onClick={() => toggleSort('surfaceM2')}
+                  style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'right' }}
+                >
+                  Superficie{arrow('surfaceM2')}
+                </th>
+                <th>Provenienza</th>
               </tr>
-            ))}
-            {filtered.length === 0 && (
-              <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--tepo-muted)', padding: 24 }}>
-                Nessun edificio corrisponde ai filtri.
-              </td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </>
+            </thead>
+            <tbody>
+              {filtered.map((b) => (
+                <tr key={b.id}>
+                  <td style={{ fontFamily: 'var(--font-family-mono)', fontSize: 'var(--font-size-xs)' }}>
+                    {b.id}
+                  </td>
+                  <td>{b.name}</td>
+                  <td>{b.address}</td>
+                  <td>{b.buildingType}</td>
+                  <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                    {b.surfaceM2} m²
+                  </td>
+                  <td>
+                    <span className="tepo-badge">{b.provenance}</span>
+                  </td>
+                </tr>
+              ))}
+              {filtered.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={6}
+                    style={{
+                      textAlign: 'center',
+                      color: 'var(--color-text-muted)',
+                      padding: 'var(--space-6)'
+                    }}
+                  >
+                    Nessun edificio corrisponde ai filtri.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
   );
 }
