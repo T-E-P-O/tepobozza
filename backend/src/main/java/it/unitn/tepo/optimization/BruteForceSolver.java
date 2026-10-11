@@ -18,7 +18,7 @@ public class BruteForceSolver implements OptimizationSolver {
         if (n > MAX_N) {
             return new OptimizationResult(
                     UUID.randomUUID().toString(),
-                    Integer.toHexString(problem.hashCode()),
+                    ProblemHasher.hash(problem),
                     List.of(), List.of(), 0, problem.budgetCents(),
                     0, 0, 0, 0,
                     SolverStatus.MODEL_INVALID, false, false,
@@ -36,7 +36,7 @@ public class BruteForceSolver implements OptimizationSolver {
         for (int mask = 0; mask < total; mask++) {
             if (!isFeasible(mask, problem)) continue;
 
-            long obj = 0, cost = 0, energy = 0, economic = 0, co2 = 0;
+            long obj, cost = 0, energy = 0, economic = 0, co2 = 0;
             int count = 0;
             List<String> ids = new ArrayList<>();
 
@@ -88,7 +88,7 @@ public class BruteForceSolver implements OptimizationSolver {
         if (bestIds == null) {
             return new OptimizationResult(
                     UUID.randomUUID().toString(),
-                    Integer.toHexString(problem.hashCode()),
+                    ProblemHasher.hash(problem),
                     List.of(), problem.candidateOptions().stream().map(CandidateOption::id).toList(),
                     0, problem.budgetCents(),
                     0, 0, 0, 0,
@@ -105,7 +105,7 @@ public class BruteForceSolver implements OptimizationSolver {
 
         return new OptimizationResult(
                 UUID.randomUUID().toString(),
-                Integer.toHexString(problem.hashCode()),
+                ProblemHasher.hash(problem),
                 bestIds, excluded,
                 bestCost,
                 problem.budgetCents() - bestCost,

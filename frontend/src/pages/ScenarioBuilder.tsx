@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchInterventions, optimizeScenario, type OptimizePayload } from '../services/api';
 import { saveAsScenario, saveLastResult, loadScenario } from '../services/scenarioStore';
-import type { InterventionOption } from '../types';
+import type { InterventionOption, ScenarioProposalDto } from '../types';
+import AiAssistantPanel from '../components/AiAssistantPanel';
 
 export default function ScenarioBuilder() {
   const [options, setOptions] = useState<InterventionOption[]>([]);
@@ -13,6 +14,10 @@ export default function ScenarioBuilder() {
   const [slot, setSlot] = useState<'A' | 'B' | ''>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [aiExcludedIds, setAiExcludedIds] = useState<string[]>([]);
+  const [aiAppliedBanner, setAiAppliedBanner] = useState(false);
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -49,9 +54,17 @@ export default function ScenarioBuilder() {
     }
   };
 
+  const applyProposal = (p: ScenarioProposalDto) => {
+    setBudgetEur(Math.max(0, Math.round(p.budgetCents / 100)));
+    setObjective(p.objective);
+    setSelected(new Set(p.candidateOptionIds));
+    setAiAppliedBanner(true);
+  };
+
   const run = async () => {
     setLoading(true);
     setError(null);
+    setAiAppliedBanner(false);
     try {
       const payload: OptimizePayload = {
         budgetCents: Math.round(budgetEur * 100),
@@ -77,6 +90,7 @@ export default function ScenarioBuilder() {
   };
 
   const totalCostEur = options.reduce((s, o) => s + o.investmentCostCents, 0) / 100;
+  const allOptionIds = options.map((o) => o.id);
 
   return (
     <div className="tepo-stack tepo-stack--loose">
@@ -94,6 +108,43 @@ export default function ScenarioBuilder() {
           Configura budget, obiettivo e vincoli. Il solver calcola il portafoglio proposto.
         </p>
       </header>
+
+      {/* ---- Assistente AI (opzionale, collassabile) ---- */}
+      <AiAssistantPanel
+        allOptionIds={allOptionIds}
+        onApply={applyProposal}
+        onExcludedIdsChange={setAiExcludedIds}
+      />
+
+      {/* ---- Banner post-applicazione ---- */}
+      {aiAppliedBanner && (
+        <div
+          role="status"
+          style={{
+            padding: 'var(--space-3) var(--space-4)',
+            background: 'var(--color-state-info-bg)',
+            color: 'var(--color-state-info-fg)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 'var(--radius-md)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: 'var(--space-3)',
+            fontSize: 'var(--font-size-sm)'
+          }}
+        >
+          <span>
+            Proposta AI applicata. Verifica i parametri e premi "Ottimizza portafoglio".
+          </span>
+          <button
+            type="button"
+            className="tepo-button tepo-button--ghost tepo-button--sm"
+            onClick={() => setAiAppliedBanner(false)}
+          >
+            Chiudi
+          </button>
+        </div>
+      )}
 
       {/* ---- Configurazione scenario ---- */}
       <section className="tepo-card">
@@ -171,7 +222,8 @@ export default function ScenarioBuilder() {
           <div>
             <h2 className="tepo-card__title">Interventi considerati</h2>
             <p className="tepo-card__subtitle">
-              {selected.size} di {options.length} selezionati — costo totale catalogo € {totalCostEur.toLocaleString('it-IT')}
+              {selected.size} di {options.length} selezionati — costo totale catalogo €{' '}
+              {totalCostEur.toLocaleString('it-IT')}
             </p>
           </div>
           <button
@@ -182,9 +234,33 @@ export default function ScenarioBuilder() {
           </button>
         </div>
 
+        {aiExcludedIds.length > 0 && (
+          <p
+            role="status"
+            style={{
+              margin: '0 0 var(--space-3)',
+              padding: 'var(--space-2) var(--space-3)',
+              background: 'var(--color-state-warning-bg)',
+              color: 'var(--color-state-warning-fg)',
+              borderRadius: 'var(--radius-md)',
+              fontSize: 'var(--font-size-sm)'
+            }}
+          >
+            L'assistente propone di escludere {aiExcludedIds.length} interventi (evidenziati in
+            rosso). Applica o rifiuta la proposta per rimuovere l'evidenziazione.
+          </p>
+        )}
+
         <div style={{ overflowX: 'auto', maxHeight: 480, overflowY: 'auto' }}>
           <table className="tepo-table tepo-table--compact">
-            <thead style={{ position: 'sticky', top: 0, background: 'var(--color-surface)', zIndex: 1 }}>
+            <thead
+              style={{
+                position: 'sticky',
+                top: 0,
+                background: 'var(--color-surface)',
+                zIndex: 1
+              }}
+            >
               <tr>
                 <th style={{ width: 40 }}></th>
                 <th>ID</th>
@@ -194,36 +270,64 @@ export default function ScenarioBuilder() {
               </tr>
             </thead>
             <tbody>
-              {options.map((o) => (
-                <tr
-                  key={o.id}
-                  onClick={() => toggle(o.id)}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <td>
-                    <input
-                      type="checkbox"
-                      checked={selected.has(o.id)}
-                      onChange={() => toggle(o.id)}
-                      onClick={(e) => e.stopPropagation()}
-                      aria-label={`Seleziona ${o.name}`}
-                    />
-                  </td>
-                  <td style={{ fontFamily: 'var(--font-family-mono)', fontSize: 'var(--font-size-xs)' }}>
-                    {o.id}
-                  </td>
-                  <td>{o.name}</td>
-                  <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                    € {(o.investmentCostCents / 100).toLocaleString('it-IT')}
-                  </td>
-                  <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                    {o.annualEnergySavingScaled.toLocaleString('it-IT')}
-                  </td>
-                </tr>
-              ))}
+              {options.map((o) => {
+                const isAiExcluded = aiExcludedIds.includes(o.id);
+                return (
+                  <tr
+                    key={o.id}
+                    onClick={() => toggle(o.id)}
+                    style={{
+                      cursor: 'pointer',
+                      background: isAiExcluded ? 'var(--color-state-danger-bg)' : undefined
+                    }}
+                  >
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selected.has(o.id)}
+                        onChange={() => toggle(o.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        aria-label={`Seleziona ${o.name}`}
+                      />
+                    </td>
+                    <td
+                      style={{
+                        fontFamily: 'var(--font-family-mono)',
+                        fontSize: 'var(--font-size-xs)'
+                      }}
+                    >
+                      {o.id}
+                    </td>
+                    <td>
+                      {o.name}
+                      {isAiExcluded && (
+                        <span
+                          className="tepo-badge tepo-badge--danger"
+                          style={{ marginLeft: 'var(--space-2)' }}
+                        >
+                          AI: escludere
+                        </span>
+                      )}
+                    </td>
+                    <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                      € {(o.investmentCostCents / 100).toLocaleString('it-IT')}
+                    </td>
+                    <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                      {o.annualEnergySavingScaled.toLocaleString('it-IT')}
+                    </td>
+                  </tr>
+                );
+              })}
               {options.length === 0 && (
                 <tr>
-                  <td colSpan={5} style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: 'var(--space-6)' }}>
+                  <td
+                    colSpan={5}
+                    style={{
+                      textAlign: 'center',
+                      color: 'var(--color-text-muted)',
+                      padding: 'var(--space-6)'
+                    }}
+                  >
                     Nessun intervento nel catalogo.
                   </td>
                 </tr>

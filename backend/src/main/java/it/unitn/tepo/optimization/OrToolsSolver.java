@@ -9,11 +9,6 @@ import java.util.*;
 @Component
 public class OrToolsSolver implements OptimizationSolver {
 
-    // Timeout per fase (secondi). Il primary ha il budget pieno.
-    private static final int PRIMARY_TIMEOUT_SECONDS = 10;
-    private static final int SECONDARY_TIMEOUT_SECONDS = 3;
-    private static final int LEXICOGRAPHIC_TIMEOUT_SECONDS = 1;
-
     private static boolean loaded = false;
 
     private static synchronized void ensureLoaded() {
@@ -26,6 +21,18 @@ public class OrToolsSolver implements OptimizationSolver {
     @Override
     public OptimizationResult solve(OptimizationProblem problem, SolverConfiguration configuration) {
         ensureLoaded();
+
+        // Pre-validazione: IncludeConstraint su opzione non candidata => INFEASIBLE.
+        // Coerente con BruteForceSolver, che la tratta come vincolo insoddisfacibile.
+        for (ScenarioConstraint c : problem.constraints()) {
+            if (c instanceof ScenarioConstraint.IncludeConstraint inc) {
+                boolean present = problem.candidateOptions().stream()
+                        .anyMatch(o -> o.id().equals(inc.optionId()));
+                if (!present) {
+                    return emptyResult(problem, SolverStatus.INFEASIBLE, false, false);
+                }
+            }
+        }
 
         int n = problem.candidateOptions().size();
         if (n == 0) {
@@ -40,13 +47,11 @@ public class OrToolsSolver implements OptimizationSolver {
         if (primary.status == StepStatus.UNKNOWN) {
             return emptyResult(problem, SolverStatus.UNKNOWN, false, false);
         }
-        // primary.status == OPTIMAL o FEASIBLE
         long bestObj = primary.value;
 
         // Passo 2: minimizza costo con obiettivo fissato
         StepResult minCost = solveMinCost(problem, configuration, bestObj);
         if (minCost.status != StepStatus.OPTIMAL && minCost.status != StepStatus.FEASIBLE) {
-            // Non è possibile completare il tie-break. Ritorno primario.
             return buildResultFromIds(problem, primary.selected,
                     primary.status == StepStatus.OPTIMAL, false);
         }
@@ -63,7 +68,6 @@ public class OrToolsSolver implements OptimizationSolver {
         // Passo 4: lexicographic ID crescente (ricostruendo il modello ogni volta)
         List<String> selected = solveLexicographic(problem, configuration, bestObj, bestCost, bestCount);
         if (selected == null) {
-            // Tie-break non completato. Ritorno una soluzione ammissibile con obiettivo/costo/count corretti.
             List<String> fallback = minCount.selected;
             return buildResultFromIds(problem, fallback,
                     primary.status == StepStatus.OPTIMAL, false);
@@ -80,52 +84,52 @@ public class OrToolsSolver implements OptimizationSolver {
         CpModel model = buildBaseModel(problem, x);
         model.maximize(objectiveExpr(problem, x));
 
-        CpSolver solver = newSolver(PRIMARY_TIMEOUT_SECONDS);
+        CpSolver solver = newSolver(cfg.primaryTimeoutSeconds());
         CpSolverStatus status = solver.solve(model);
         return interpretStatus(problem, x, solver, status);
     }
 
     private StepResult solveMinCost(OptimizationProblem problem, SolverConfiguration cfg, long fixedObj) {
-    BoolVar[] x = new BoolVar[problem.candidateOptions().size()];
-    CpModel model = buildBaseModel(problem, x);
-    model.addEquality(objectiveExpr(problem, x), fixedObj);
-    model.minimize(costExpr(problem, x));
+        BoolVar[] x = new BoolVar[problem.candidateOptions().size()];
+        CpModel model = buildBaseModel(problem, x);
+        model.addEquality(objectiveExpr(problem, x), fixedObj);
+        model.minimize(costExpr(problem, x));
 
-    CpSolver solver = newSolver(SECONDARY_TIMEOUT_SECONDS);
-    CpSolverStatus status = solver.solve(model);
+        CpSolver solver = newSolver(cfg.secondaryTimeoutSeconds());
+        CpSolverStatus status = solver.solve(model);
 
-    if (status == CpSolverStatus.OPTIMAL || status == CpSolverStatus.FEASIBLE) {
-        long cost = extractCost(problem, x, solver);
-        StepStatus st = (status == CpSolverStatus.OPTIMAL) ? StepStatus.OPTIMAL : StepStatus.FEASIBLE;
-        return new StepResult(st, cost, extractSelected(problem, x, solver));
+        if (status == CpSolverStatus.OPTIMAL || status == CpSolverStatus.FEASIBLE) {
+            long cost = extractCost(problem, x, solver);
+            StepStatus st = (status == CpSolverStatus.OPTIMAL) ? StepStatus.OPTIMAL : StepStatus.FEASIBLE;
+            return new StepResult(st, cost, extractSelected(problem, x, solver));
+        }
+        if (status == CpSolverStatus.INFEASIBLE) {
+            return new StepResult(StepStatus.INFEASIBLE, 0, List.of());
+        }
+        return new StepResult(StepStatus.UNKNOWN, 0, List.of());
     }
-    if (status == CpSolverStatus.INFEASIBLE) {
-        return new StepResult(StepStatus.INFEASIBLE, 0, List.of());
-    }
-    return new StepResult(StepStatus.UNKNOWN, 0, List.of());
-}
 
-private StepResult solveMinCount(OptimizationProblem problem, SolverConfiguration cfg,
-                                 long fixedObj, long fixedCost) {
-    BoolVar[] x = new BoolVar[problem.candidateOptions().size()];
-    CpModel model = buildBaseModel(problem, x);
-    model.addEquality(objectiveExpr(problem, x), fixedObj);
-    model.addEquality(costExpr(problem, x), fixedCost);
-    model.minimize(countExpr(x));
+    private StepResult solveMinCount(OptimizationProblem problem, SolverConfiguration cfg,
+                                     long fixedObj, long fixedCost) {
+        BoolVar[] x = new BoolVar[problem.candidateOptions().size()];
+        CpModel model = buildBaseModel(problem, x);
+        model.addEquality(objectiveExpr(problem, x), fixedObj);
+        model.addEquality(costExpr(problem, x), fixedCost);
+        model.minimize(countExpr(x));
 
-    CpSolver solver = newSolver(SECONDARY_TIMEOUT_SECONDS);
-    CpSolverStatus status = solver.solve(model);
+        CpSolver solver = newSolver(cfg.secondaryTimeoutSeconds());
+        CpSolverStatus status = solver.solve(model);
 
-    if (status == CpSolverStatus.OPTIMAL || status == CpSolverStatus.FEASIBLE) {
-        int cnt = extractCount(x, solver);
-        StepStatus st = (status == CpSolverStatus.OPTIMAL) ? StepStatus.OPTIMAL : StepStatus.FEASIBLE;
-        return new StepResult(st, cnt, extractSelected(problem, x, solver));
+        if (status == CpSolverStatus.OPTIMAL || status == CpSolverStatus.FEASIBLE) {
+            int cnt = extractCount(x, solver);
+            StepStatus st = (status == CpSolverStatus.OPTIMAL) ? StepStatus.OPTIMAL : StepStatus.FEASIBLE;
+            return new StepResult(st, cnt, extractSelected(problem, x, solver));
+        }
+        if (status == CpSolverStatus.INFEASIBLE) {
+            return new StepResult(StepStatus.INFEASIBLE, 0, List.of());
+        }
+        return new StepResult(StepStatus.UNKNOWN, 0, List.of());
     }
-    if (status == CpSolverStatus.INFEASIBLE) {
-        return new StepResult(StepStatus.INFEASIBLE, 0, List.of());
-    }
-    return new StepResult(StepStatus.UNKNOWN, 0, List.of());
-}
 
     /**
      * Lexicographic ID crescente.
@@ -151,7 +155,6 @@ private StepResult solveMinCount(OptimizationProblem problem, SolverConfiguratio
             Integer idx = idToIndex.get(c.id());
             if (idx == null) continue;
 
-            // Ricostruzione completa del modello per questo tentativo
             BoolVar[] x = new BoolVar[problem.candidateOptions().size()];
             CpModel model = buildBaseModel(problem, x);
             model.addEquality(objectiveExpr(problem, x), fixedObj);
@@ -168,7 +171,7 @@ private StepResult solveMinCount(OptimizationProblem problem, SolverConfiguratio
             }
             model.addEquality(x[idx], 1);
 
-            CpSolver solver = newSolver(LEXICOGRAPHIC_TIMEOUT_SECONDS);
+            CpSolver solver = newSolver(cfg.lexicographicTimeoutSeconds());
             CpSolverStatus s = solver.solve(model);
 
             if (s == CpSolverStatus.OPTIMAL || s == CpSolverStatus.FEASIBLE) {
@@ -176,13 +179,10 @@ private StepResult solveMinCount(OptimizationProblem problem, SolverConfiguratio
             } else if (s == CpSolverStatus.INFEASIBLE) {
                 forcedExclude.add(c.id());
             } else {
-                // UNKNOWN o MODEL_INVALID: non possiamo decidere.
-                // Il tie-break non è completabile.
                 return null;
             }
         }
 
-        // Soluzione finale: tutti i forcing applicati
         BoolVar[] x = new BoolVar[problem.candidateOptions().size()];
         CpModel model = buildBaseModel(problem, x);
         model.addEquality(objectiveExpr(problem, x), fixedObj);
@@ -197,7 +197,7 @@ private StepResult solveMinCount(OptimizationProblem problem, SolverConfiguratio
             if (i2 != null) model.addEquality(x[i2], 0);
         }
 
-        CpSolver solver = newSolver(LEXICOGRAPHIC_TIMEOUT_SECONDS);
+        CpSolver solver = newSolver(cfg.lexicographicTimeoutSeconds());
         CpSolverStatus s = solver.solve(model);
         if (s != CpSolverStatus.OPTIMAL && s != CpSolverStatus.FEASIBLE) {
             return null;
@@ -227,9 +227,6 @@ private StepResult solveMinCount(OptimizationProblem problem, SolverConfiguratio
         if (status == CpSolverStatus.OPTIMAL || status == CpSolverStatus.FEASIBLE) {
             long obj = computeObjectiveFromSolution(problem, x, solver);
             List<String> selected = extractSelected(problem, x, solver);
-            // Il "value" è l'obiettivo primario.
-            // Per i passi che minimizzano costo o count, il chiamante interpreta value come tale.
-            // Qui ritorniamo l'obiettivo primario; il chiamante sa come usarlo.
             long value = switch (problem.objective()) {
                 case ENERGY_SAVING, ECONOMIC_SAVING, CO2_REDUCTION -> obj;
             };
@@ -242,8 +239,6 @@ private StepResult solveMinCount(OptimizationProblem problem, SolverConfiguratio
         return new StepResult(StepStatus.UNKNOWN, 0, List.of());
     }
 
-    // Aggiustamento: per minCost e minCount ci serve il valore di costo o count, non l'obiettivo.
-    // Uso metodi dedicati.
     private long extractCost(OptimizationProblem problem, BoolVar[] x, CpSolver solver) {
         long c = 0;
         for (int i = 0; i < x.length; i++) {
@@ -280,8 +275,8 @@ private StepResult solveMinCount(OptimizationProblem problem, SolverConfiguratio
 
         for (ScenarioConstraint constraint : problem.constraints()) {
             if (constraint instanceof ScenarioConstraint.BudgetConstraint budget) {
-                // Budget già applicato. Coerenza: se presente, verifichiamo che non contraddica.
-                // Non riapplichiamo per non duplicare.
+                // Budget già applicato tramite problem.budgetCents().
+                // La coerenza con il budget esplicito è verificata in OptimizationService.
             } else if (constraint instanceof ScenarioConstraint.IncompatibilityConstraint inc) {
                 Integer a = index.get(inc.optionA());
                 Integer b = index.get(inc.optionB());
@@ -294,9 +289,17 @@ private StepResult solveMinCount(OptimizationProblem problem, SolverConfiguratio
             } else if (constraint instanceof ScenarioConstraint.PrerequisiteConstraint pre) {
                 Integer opt = index.get(pre.option());
                 Integer req = index.get(pre.requiredOption());
-                if (opt != null && req != null) {
-                    model.addImplication(x[opt], x[req]);
+                if (opt != null) {
+                    if (req != null) {
+                        model.addImplication(x[opt], x[req]);
+                    } else {
+                        // Prerequisito non presente tra i candidati:
+                        // l'opzione dipendente non può essere selezionata
+                        // (parità con BruteForceSolver).
+                        model.addEquality(x[opt], 0);
+                    }
                 }
+                // opt == null: opzione dipendente non candidata, nulla da applicare.
             } else if (constraint instanceof ScenarioConstraint.MaxNumberConstraint max) {
                 LinearExprBuilder sum = LinearExpr.newBuilder();
                 for (String id : max.optionIds()) {
@@ -306,7 +309,10 @@ private StepResult solveMinCount(OptimizationProblem problem, SolverConfiguratio
                 model.addLessOrEqual(sum.build(), max.maxNumber());
             } else if (constraint instanceof ScenarioConstraint.IncludeConstraint inc) {
                 Integer idx = index.get(inc.optionId());
-                if (idx != null) model.addEquality(x[idx], 1);
+                if (idx != null) {
+                    model.addEquality(x[idx], 1);
+                }
+                // idx == null: gestito dalla pre-validazione in solve() => INFEASIBLE.
             } else if (constraint instanceof ScenarioConstraint.ExcludeConstraint exc) {
                 Integer idx = index.get(exc.optionId());
                 if (idx != null) model.addEquality(x[idx], 0);
@@ -396,7 +402,7 @@ private StepResult solveMinCount(OptimizationProblem problem, SolverConfiguratio
 
         return new OptimizationResult(
                 UUID.randomUUID().toString(),
-                Integer.toHexString(problem.hashCode()),
+                ProblemHasher.hash(problem),
                 sortedSel,
                 excluded,
                 totalCost,
@@ -417,7 +423,7 @@ private StepResult solveMinCount(OptimizationProblem problem, SolverConfiguratio
         List<String> allIds = problem.candidateOptions().stream().map(CandidateOption::id).toList();
         return new OptimizationResult(
                 UUID.randomUUID().toString(),
-                Integer.toHexString(problem.hashCode()),
+                ProblemHasher.hash(problem),
                 List.of(),
                 allIds,
                 0, problem.budgetCents(),

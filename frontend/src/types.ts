@@ -44,3 +44,28 @@ export type OptimizationResult = {
   canonicalTieBreakCompleted: boolean;
   explanations: Explanation[];
 };
+
+/* ---- Assistente AI ---- */
+
+export type ScenarioProposalSource = 'RULE_BASED' | 'LLM' | 'LLM_FALLBACK_RULE_BASED';
+
+/**
+ * Proposta di parametri di scenario. Non è un comando: richiede sempre
+ * approvazione umana prima di essere applicata al form di ScenarioBuilder.
+ */
+export type ScenarioProposalDto = {
+  budgetCents: number;
+  objective: string;
+  candidateOptionIds: string[];
+  explanation: string;
+  source: ScenarioProposalSource;
+  missingInformation: string[];
+  warnings: string[];
+  requiresHumanReview: boolean;
+};
+
+export type AiStatus = {
+  llmConfigured: boolean;
+  activeProvider: string;
+  notes: string[];
+};

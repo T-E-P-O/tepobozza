@@ -6,6 +6,7 @@ import it.unitn.tepo.domain.*;
 import it.unitn.tepo.optimization.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +24,15 @@ public class OptimizationService {
     private final OptimizationSolver solver;
     private final ExplanationService explanationService;
     private final ObjectMapper objectMapper;
+
+    @Value("${tepo.solver.primary-timeout-seconds:10}")
+    private int primaryTimeoutSeconds;
+
+    @Value("${tepo.solver.secondary-timeout-seconds:3}")
+    private int secondaryTimeoutSeconds;
+
+    @Value("${tepo.solver.lexicographic-timeout-seconds:1}")
+    private int lexicographicTimeoutSeconds;
 
     public OptimizationService(BuildingRepository buildingRepository,
                                InterventionOptionRepository optionRepository,
@@ -79,8 +89,17 @@ public class OptimizationService {
                 .collect(Collectors.toList());
 
         List<ScenarioConstraint> allConstraints = new ArrayList<>(constraints == null ? List.of() : constraints);
-        boolean hasBudget = allConstraints.stream()
-                .anyMatch(c -> c instanceof ScenarioConstraint.BudgetConstraint);
+        boolean hasBudget = false;
+        for (ScenarioConstraint c : allConstraints) {
+            if (c instanceof ScenarioConstraint.BudgetConstraint b) {
+                hasBudget = true;
+                if (b.budgetCents() != budgetCents) {
+                    throw new IllegalArgumentException(
+                            "BudgetConstraint(" + b.budgetCents() + ") non coincide con budgetCents="
+                                    + budgetCents + " per lo scenario " + scenarioId);
+                }
+            }
+        }
         if (!hasBudget) {
             allConstraints.add(new ScenarioConstraint.BudgetConstraint(budgetCents));
         }
@@ -98,10 +117,13 @@ public class OptimizationService {
         log.info("Starting optimization: scenario={} budgetCents={} objective={} candidates={} constraints={}",
                 scenarioId, budgetCents, objective, candidates.size(), allConstraints.size());
 
+        SolverConfiguration config = new SolverConfiguration(
+                primaryTimeoutSeconds, secondaryTimeoutSeconds, lexicographicTimeoutSeconds);
+
         long started = System.currentTimeMillis();
         OptimizationResult raw;
         try {
-            raw = solver.solve(problem, SolverConfiguration.defaultConfig());
+            raw = solver.solve(problem, config);
         } catch (RuntimeException ex) {
             log.error("Solver error for scenario {}: {}", scenarioId, ex.getMessage(), ex);
             throw new IllegalStateException("Errore durante l'ottimizzazione: " + ex.getMessage(), ex);

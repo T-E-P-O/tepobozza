@@ -1,6 +1,6 @@
 # TEPO — Trento Energy Portfolio Optimizer
 
-[![CI](https://github.com/mirconegri/tepobozza/actions/workflows/ci.yml/badge.svg)](https://github.com/mirconegri/tepobozza/actions/workflows/ci.yml) 
+[![CI](https://github.com/mirconegri/tepobozza/actions/workflows/ci.yml/badge.svg)](https://github.com/mirconegri/tepobozza/actions/workflows/ci.yml)
 
 Decision Support System per la selezione di portafogli di interventi di efficientamento energetico sugli edifici comunali.
 
@@ -30,12 +30,13 @@ Progetto accademico — Università degli Studi di Trento, corso di Ingegneria d
 
 - Gestisce edifici, tipologie e opzioni di intervento con provenienza dati esplicita.
 - Crea scenari con budget, obiettivo (energia / economia / CO2) e vincoli.
-- Ottimizza il portafoglio con **OR-Tools CP-SAT** (Knapsack / MILP binario).
+- Ottimizza il portafoglio con **OR-Tools CP-SAT** (Knapsack / MILP binario), multi-pass con tie-break lessicografico canonico.
 - Spiega selezioni ed esclusioni con reason code deterministici.
 - Confronta scenari (What-If).
 - Visualizza gli edifici sulla mappa di Trento.
 - Importa edifici da CSV con preview e validazione.
 - Espone API REST documentate con Swagger UI.
+- Offre un assistente AI **opzionale** che propone parametri di scenario da linguaggio naturale. L'AI non calcola risultati e non applica nulla senza approvazione umana.
 
 **Fuori dall'MVP:** IoT, digital twin, previsione dei consumi, monitoraggio post-intervento, pianificazione multi-anno, Pareto frontier, integrazione con sistemi comunali. Elencati come Future Work in `docs/requirements.md`.
 
@@ -54,31 +55,35 @@ Progetto accademico — Università degli Studi di Trento, corso di Ingegneria d
 | Test backend | JUnit 5, Mockito, H2 in-memory |
 | Test frontend | Vitest, Testing Library |
 | Infrastruttura | Docker Compose |
+| AI (opzionale) | Client HTTP compatibile OpenAI, prompt strutturato, fallback deterministico |
 
 ---
 
 ## Struttura repository
 
 ```
-tepodeepseek/
-├── backend/                    Backend Spring Boot + solver
+tepobozza/
+├── backend/
 │   ├── src/main/java/it/unitn/tepo/
-│   │   ├── ai/                 Componente AI opzionale
+│   │   ├── ai/                 Assistente AI (interfaccia + rule-based + LLM)
+│   │   │   └── llm/            Provider LLM, prompt, parsing
 │   │   ├── api/                Controller REST
 │   │   ├── application/        Servizi applicativi e repository
 │   │   ├── configuration/      Demo data loader, OpenAPI config
 │   │   ├── domain/             Entità e enum
-│   │   └── optimization/       Solver, dominio del problema, spiegazioni
+│   │   └── optimization/       Solver, dominio del problema, spiegazioni, hasher canonico
 │   ├── src/main/resources/
 │   │   ├── application.yaml
 │   │   └── db/migration/       Migrazioni Flyway (V1, V2)
-│   └── src/test/java/          Test automatici (43 verdi)
-├── frontend/                   React + Leaflet
+│   └── src/test/java/          Test automatici (61 verdi)
+├── frontend/
 │   ├── src/pages/              8 pagine: Dashboard, Mappa, Edifici,
 │   │                           Interventi, Scenario, Risultato,
 │   │                           Confronto, Import
+│   ├── src/components/         ThemeToggle, AiAssistantPanel
 │   ├── src/services/           API client, scenario store
-│   ├── src/test/               Test Vitest (7 verdi)
+│   ├── src/styles/             Design tokens, base, componenti
+│   ├── src/test/               Test Vitest (15 verdi)
 │   └── Dockerfile
 ├── docs/                       Documentazione tecnica
 │   ├── requirements.md
@@ -86,6 +91,7 @@ tepodeepseek/
 │   ├── domain-model.md
 │   ├── optimization.md
 │   ├── api.md
+│   ├── ai-integration.md
 │   ├── testing.md
 │   ├── traceability.md
 │   ├── demo.md
@@ -93,6 +99,7 @@ tepodeepseek/
 │   ├── data-readiness.md
 │   ├── audit-report.md
 │   ├── checkpoint.md
+│   ├── design-system.md
 │   ├── screenshot/
 │   └── uml/
 ├── docker-compose.yaml
@@ -125,7 +132,7 @@ npm --version
 
 ### 1. Database
 
-Da `tepodeepseek/`:
+Da `tepobozza/`:
 
 ```bash
 docker compose up -d db
@@ -179,13 +186,30 @@ Apri `http://localhost:5173`.
 
 ### 4. Avvio completo con Docker
 
-Se preferisci avviare tutto con Docker:
-
 ```bash
 docker compose up --build
 ```
 
 Atteso: 3 container (`tepo-db`, `tepo-backend`, `tepo-frontend`). Apri `http://localhost:5173`.
+
+### 5. Assistente AI (opzionale)
+
+TEPO funziona **completamente senza LLM**. Il motore di default è
+deterministico e rule-based.
+
+Per attivare un provider LLM compatibile OpenAI:
+
+```powershell
+$env:SPRING_PROFILES_ACTIVE = "demo,llm"
+$env:TEPO_AI_ENABLED        = "true"
+$env:LLM_API_KEY            = "<chiave>"
+$env:LLM_MODEL              = "gpt-4o-mini"
+# opzionale: $env:LLM_API_ENDPOINT = "https://..."
+mvn spring-boot:run
+```
+
+Se la chiave è assente, ogni chiamata cade nel fallback locale con warning
+espliciti. Nessuna chiave è mai committata. Vedi `docs/ai-integration.md`.
 
 ---
 
@@ -198,15 +222,19 @@ cd backend
 mvn clean test
 ```
 
-Atteso: **43 test verdi**.
+Atteso: **61 test verdi**.
 
-Copre:
-- correttezza del solver (budget, vincoli, obiettivi, casi limite);
-- parità OR-Tools vs brute force su istanze piccole;
-- determinismo del tie-break multi-pass;
-- spiegazioni per ogni reason code;
-- coerenza interna del dataset demo (H2 in-memory);
-- API controller con `@WebMvcTest`.
+| Classe | Test | Copertura |
+|---|---|---|
+| `BruteForceSolverTest` | 12 | Oracle esaustivo: vincoli, tie-break, casi limite |
+| `OrToolsSolverTest` | 6 | CP-SAT: budget, incompatibilità, prerequisiti, maxNumber, infeasible |
+| `OrToolsSolverRegressionTest` | 10 | Multi-pass, tie-break canonico, stati, timeout |
+| `SolverParityTest` | 4 | Parità OrTools vs BruteForce |
+| `SolverEdgeCaseTest` | 8 | Prerequisiti vs non-candidati, hash canonico, IncludeConstraint |
+| `ExplanationServiceTest` | 4 | Reason code per ogni famiglia |
+| `DemoDatasetCoherenceTest` | 5 | Coerenza interna dataset (H2) |
+| `LlmAiAssistantTest` | 10 | Provider LLM con client fake, fallback, validazione |
+| `ScenarioControllerTest` | 2 | `@WebMvcTest` endpoint scenarios |
 
 ### Frontend
 
@@ -215,12 +243,23 @@ cd frontend
 npm test
 ```
 
-Atteso: **7 test verdi**.
+Atteso: **15 test verdi**.
 
-Copre:
-- Dashboard (stato vuoto, principio architetturale);
-- Confronto scenari (stato vuoto, tabella A vs B);
-- Store su sessionStorage.
+| Classe | Test | Copertura |
+|---|---|---|
+| `Dashboard.test.tsx` | 2 | Stato vuoto, principio architetturale |
+| `ComparePage.test.tsx` | 2 | Stato vuoto, tabella A vs B |
+| `scenarioStore.test.ts` | 3 | Store su sessionStorage |
+| `AiAssistantPanel.test.tsx` | 8 | Status AI, proposta, apply, reject, errore, fallback |
+
+### Build frontend
+
+```bash
+cd frontend
+npm run build
+```
+
+Atteso: `tsc` pulito, `vite build` senza errori.
 
 ---
 
@@ -236,15 +275,21 @@ Variabili binarie `x_i ∈ {0,1}` per ogni intervento candidato.
 **Vincoli**:
 - `Σ cost_i · x_i ≤ B` (budget)
 - `x_A + x_B ≤ 1` (incompatibilità)
-- `x_B ≤ x_A` (prerequisito)
+- `x_A ⇒ x_req` (prerequisito; se il prerequisito non è candidato, `x_A = 0`)
 - `Σ x_i ≤ K` (massimo numero)
-- `x_i = 1` / `x_i = 0` (inclusione / esclusione)
+- `x_i = 1` / `x_i = 0` (inclusione / esclusione; `IncludeConstraint` su opzione non candidata ⇒ INFEASIBLE)
 
-**Tie-break canonico** (lessicografico):
+**Tie-break canonico** (lessicografico a 4 passi):
 1. massimizza obiettivo primario;
 2. minimizza costo totale;
 3. minimizza numero di interventi;
 4. preferisce ID crescenti.
+
+Il flag `canonicalTieBreakCompleted` è `true` solo se tutti i passi sono
+terminati. Il flag `optimalityProven` riflette lo stato del passo primario.
+Stati distinti: `OPTIMAL`, `FEASIBLE`, `INFEASIBLE`, `UNKNOWN`, `MODEL_INVALID`.
+
+Timeout per fase configurabili in `application.yaml` sotto `tepo.solver.*`.
 
 Dettagli in `docs/optimization.md`.
 
@@ -287,7 +332,8 @@ Vedi `docs/domain-model.md` e `docs/data-readiness.md` per i dettagli.
 | GET | `/api/runs` | Storico esecuzioni |
 | GET | `/api/runs/scenario/{scenarioId}` | Storico per scenario |
 | GET | `/api/map/buildings` | Edifici per mappa |
-| POST | `/api/ai/propose` | Proposta AI (opzionale) |
+| POST | `/api/ai/propose` | Proposta AI (validata, mai applicata automaticamente) |
+| GET | `/api/ai/status` | Stato integrazione AI (LLM configurato o rule-based) |
 | GET | `/v3/api-docs` | OpenAPI JSON |
 | GET | `/swagger-ui.html` | Swagger UI |
 
@@ -300,11 +346,16 @@ Dettagli in `docs/api.md` e nella Swagger UI a runtime.
 TEPO funziona **completamente senza LLM**. Il modulo `ai/` contiene:
 
 - `AiAssistant` — interfaccia astratta;
-- `RuleBasedAiAssistant` — implementazione default, deterministica, estrae budget e obiettivo da testo libero;
-- `LlmAiAssistant` — stub attivabile con profilo `llm` e API key esterna; **non attivo di default**;
-- `AiController` — endpoint `POST /api/ai/propose` che restituisce una proposta controllabile, mai eseguita automaticamente.
+- `RuleBasedAiAssistant` — implementazione default (`@Primary`), deterministica;
+- `LlmAiAssistant` — attivabile con profilo `llm` e API key esterna;
+- `LlmClient` / `OpenAiCompatibleClient` — client HTTP configurabile;
+- `LlmPromptTemplates` — prompt in italiano con schema JSON fisso;
+- `LlmResponseParser` — parsing robusto e validazione;
+- `AiController` — `POST /api/ai/propose` (proposta) e `GET /api/ai/status`.
 
-L'LLM non può modificare dati, vincoli o risultati del solver. Vedi `docs/requirements.md` (FR-18).
+L'LLM non può modificare dati, vincoli o risultati del solver. Ogni proposta
+richiede approvazione umana esplicita. Vedi `docs/ai-integration.md` e
+`docs/requirements.md` (FR-18).
 
 ---
 
@@ -316,17 +367,9 @@ L'import accetta file CSV con intestazione:
 id,name,address,municipality,latitude,longitude,buildingType,surfaceM2
 ```
 
-**Caratteristiche gestite:**
-- BOM UTF-8;
-- fine riga LF, CRLF, CR;
-- valori tra virgolette con virgole interne;
-- separatori decimali `.` o `,`;
-- righe vuote ignorate;
-- ID duplicati rifiutati;
-- latitudine e longitudine validate;
-- commit parziale con report esplicito (nessuna scrittura silenziosa).
+**Caratteristiche gestite:** BOM UTF-8, fine riga LF/CRLF/CR, valori tra virgolette con virgole interne, separatori decimali `.` o `,`, righe vuote ignorate, ID duplicati rifiutati, latitudine e longitudine validate, commit parziale con report esplicito (nessuna scrittura silenziosa).
 
-Esempio valido:
+Esempio:
 
 ```csv
 id,name,address,municipality,latitude,longitude,buildingType,surfaceM2
@@ -344,15 +387,17 @@ Dettagli in `docs/api.md`.
 | `docs/requirements.md` | Requisiti funzionali e non funzionali |
 | `docs/architecture.md` | Architettura a layer |
 | `docs/domain-model.md` | Entità del dominio e invarianti |
-| `docs/optimization.md` | Modello matematico, tie-break, reason code |
+| `docs/optimization.md` | Modello matematico, tie-break, reason code, stati |
 | `docs/api.md` | Endpoint REST |
+| `docs/ai-integration.md` | Provider LLM, configurazione, human-in-the-loop, test |
 | `docs/testing.md` | Strategia di test |
 | `docs/traceability.md` | Matrice requisiti → componente → test |
 | `docs/demo.md` | Script per la presentazione |
-| `docs/collaudo.md` | Protocollo di collaudo (eseguito 2026-10-09) |
+| `docs/collaudo.md` | Protocollo di collaudo |
 | `docs/data-readiness.md` | Fonti dati e stato di disponibilità |
 | `docs/audit-report.md` | Audit tecnico e correzioni |
 | `docs/checkpoint.md` | Verifica finale e stato di consegna |
+| `docs/design-system.md` | Design system, token, temi |
 | `docs/uml/` | 4 diagrammi PlantUML |
 | `docs/screenshot/` | Screenshot delle schermate chiave |
 
@@ -365,26 +410,10 @@ Dettagli in `docs/api.md`.
 - Singolo orizzonte decisionale (no multi-anno, no scheduling).
 - Obiettivo singolo per scenario (no multi-objective, no Pareto).
 - Nessuna previsione autonoma dei consumi o dei prezzi.
-- L'LLM non è attivo di default; il componente rule-based è deterministico.
+- L'LLM è opzionale e non è attivo di default; il motore rule-based è deterministico.
+- Scenari A/B persistiti solo in `sessionStorage` (limite noto).
 
 Il progetto dimostra il metodo e il processo. L'utilità operativa reale richiede dati forniti dal Comune, validazione tecnica delle stime e revisione umana.
-
----
-
-## Screenshot
-
-Le schermate principali sono in `docs/screenshot/`:
-
-- `01-dashboard-iniziale.png` — dashboard con catalogo
-- `03-mappa-trento.png` — mappa con edifici demo
-- `04-dettaglio-edificio.png` — dettaglio edificio e interventi
-- `05-edifici.png` — tabella edifici
-- `07-interventi.png` — tabella interventi
-- `08-scenario-builder.png` — configurazione scenario
-- `11a-risultato-kpi.png` — KPI risultato
-- `11b-risultato-selezionati.png` — portafoglio selezionato
-- `11c-risultato-motivazioni.png` — spiegazioni
-- `14a-confronto-tabella.png` — confronto A vs B
 
 ---
 

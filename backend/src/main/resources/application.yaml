@@ -24,3 +24,19 @@ springdoc:
     path: /swagger-ui.html
     operationsSorter: alpha
     tagsSorter: alpha
+
+tepo:
+  solver:
+    primary-timeout-seconds: ${TEPO_SOLVER_PRIMARY_TIMEOUT:10}
+    secondary-timeout-seconds: ${TEPO_SOLVER_SECONDARY_TIMEOUT:3}
+    lexicographic-timeout-seconds: ${TEPO_SOLVER_LEX_TIMEOUT:1}
+  ai:
+    enabled: ${TEPO_AI_ENABLED:false}
+    endpoint: ${LLM_API_ENDPOINT:https://api.openai.com/v1/chat/completions}
+    model: ${LLM_MODEL:gpt-4o-mini}
+    api-key: ${LLM_API_KEY:}
+    timeout-seconds: ${TEPO_AI_TIMEOUT:20}
+    max-tokens: ${TEPO_AI_MAX_TOKENS:512}
+    fallback-on-error: ${TEPO_AI_FALLBACK:true}
+    max-input-length: ${TEPO_AI_MAX_INPUT:2000}
+    temperature: ${TEPO_AI_TEMPERATURE:0.2}

@@ -2,13 +2,11 @@ package it.unitn.tepo.ai;
 
 import it.unitn.tepo.application.InterventionOptionRepository;
 import it.unitn.tepo.domain.Objective;
-import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 @Service
-@Primary
 public class RuleBasedAiAssistant implements AiAssistant {
 
     private final InterventionOptionRepository optionRepo;
@@ -28,7 +26,7 @@ public class RuleBasedAiAssistant implements AiAssistant {
             obj = Objective.ECONOMIC_SAVING;
         }
 
-        long budget = 500_000_00L; // 500k EUR di default
+        long budget = 500_000_00L;
         java.util.regex.Matcher m = java.util.regex.Pattern
                 .compile("(\\d{3,9})\\s*(k|mila|mila euro|m)?")
                 .matcher(lower);
@@ -46,7 +44,11 @@ public class RuleBasedAiAssistant implements AiAssistant {
                 budget,
                 obj,
                 ids,
-                "Proposta deterministica da testo: budget " + budget + " cent, obiettivo " + obj
+                "Proposta deterministica da testo: budget " + budget + " cent, obiettivo " + obj,
+                ScenarioProposal.ProposalSource.RULE_BASED,
+                List.of(),
+                List.of(),
+                true
         );
     }
 }
