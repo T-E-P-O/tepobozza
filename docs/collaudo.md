@@ -1,18 +1,19 @@
 # Collaudo manuale TEPO
 
-Data: 2026-10-09
+## Sessione 1 — 2026-10-09
+
 Ambiente: Windows 11, JDK 21 Temurin 21.0.12.101, Maven 3.9,
 Docker Desktop, PostgreSQL 16, Node 24, browser Chrome/Firefox.
 Backend avviato con profilo `demo`, dataset 10 edifici / 26 interventi.
 
-## Esito complessivo
+### Esito complessivo
 
 Tutti i 15 passi del protocollo di collaudo sono stati superati.
 Il flusso end-to-end funziona. Determinismo confermato su 3 run identici.
 Console browser senza errori rossi (solo warning benigni di deprecazione
 React Router e Firefox MouseEvent).
 
-## Passi verificati
+### Passi verificati
 
 | Passo | Contenuto | Esito | Screenshot |
 |---|---|---|---|
@@ -34,7 +35,7 @@ React Router e Firefox MouseEvent).
 | 15.b | Console senza errori rossi | OK | — |
 | 15.c | Determinismo su 3 run identici | OK | — |
 
-## Risultati osservati
+### Risultati osservati
 
 Scenario A (budget 500.000 EUR, risparmio energetico):
 - Investimento: 500.000 EUR (budget esaurito)
@@ -53,26 +54,89 @@ Scenario B (budget 1.000.000 EUR, risparmio energetico):
 - Interventi selezionati: 18
 
 B contiene A come sottoinsieme stretto: 10 interventi aggiunti, 0 rimossi.
-Il vincolo di incompatibilità OPT-001 ↔ OPT-021 è applicato correttamente
-(OPT-021 escluso quando OPT-001 selezionato).
+Il vincolo di incompatibilità OPT-001 ↔ OPT-021 è applicato correttamente.
 
-## Warning residui (non bloccanti)
+### Warning residui (non bloccanti)
 
-- React Router v7 future flags (deprecazione annunciata, funziona ancora).
+- React Router v7 future flags (deprecazione annunciata).
 - Firefox: `MouseEvent.mozPressure` e `MouseEvent.mozInputSource` deprecati.
 - Docker Compose: campo `version` obsoleto nel YAML (da rimuovere).
 
-## Problemi noti non bloccanti
+---
 
-- P4 (explanationsJson) — risolto in blocco A.
-- P5 (parser CSV) — risolto con commons-csv.
-- P6 (reason code) — risolto con distinzione esplicita.
-- P7 (matrice) — risolta con colonna evidenza onesta.
-- P9 (scenarioId fisso) — limite documentato, fuori MVP.
-- P10 (doc AI) — riformulata.
+## Sessione 2 — 2026-10-11 (dopo Fase C)
+
+Ambiente: stesso della sessione 1.
+
+### Esito complessivo
+
+Tutti i comandi di verifica passano. Nessuna regressione rispetto alla
+sessione 1. Sono state aggiunte le funzionalità di hardening solver e
+integrazione AI opzionale.
+
+### Comandi eseguiti
+
+| Comando | Esito | Note |
+|---|---|---|
+| `mvn -B clean test` | 61/61 verdi | +18 test rispetto a 43 baseline |
+| `npm test -- --run` | 15/15 verdi | +8 test frontend |
+| `npx tsc --noEmit` | pulito | — |
+| `npm run build` | OK | 91 moduli, 374 KB |
+| `docker compose config --quiet` | pulito | — |
+| `docker compose build --no-cache backend frontend` | OK | ~4 min |
+
+### Novità verificate
+
+**Backend**:
+- `SolverEdgeCaseTest` (8 test): prerequisiti non-candidati, hash canonico,
+  IncludeConstraint non-candidata.
+- `LlmAiAssistantTest` (10 test): client fake, fallback, validazione.
+- `ProblemHasher`: SHA-256 canonico su contenuto ordinato.
+- Timeout configurabili via `tepo.solver.*`.
+- `AiController` con `GET /api/ai/status`.
+
+**Frontend**:
+- `AiAssistantPanel.test.tsx` (8 test): status AI, proposta, apply, reject,
+  errore, fallback.
+- Pannello AI collassabile in `ScenarioBuilder`.
+- Evidenziazione esclusi proposti senza deselezione.
+
+### Verifiche manuali raccomandate (non eseguite in questa sessione)
+
+1. Aprire `http://localhost:5173/scenario`.
+2. Aprire pannello AI, verificare badge "Modalità locale".
+3. Inviare testo "voglio ridurre la CO2 con budget 500k".
+4. Verificare proposta con warning "Provider LLM non configurato".
+5. Click "Applica allo scenario": budget e obiettivo precompilati, banner visibile.
+6. Click "Ottimizza portafoglio": risultato coerente.
+7. Ripetere con profilo `llm` e chiave valida (se disponibile): badge "LLM attivo".
+
+### Limiti del collaudo
+
+- `docker compose up -d` completo non eseguito in questa sessione.
+- Test con provider LLM reale non eseguito.
+- Import CSV con file esterni non rieseguito in questa sessione (verificato
+  in sessione precedente).
+
+---
+
+## Problemi noti non bloccanti (aggiornati)
+
+- **P4** — `explanationsJson` serializzato ma senza test di round-trip.
+- **P9** — `scenarioId` fisso a `SCN-DEMO`, A/B solo in `sessionStorage`.
+- **NFR-09** — Snapshot immutabile non versionato.
+- **P10** — `coefficientScale` campo morto in `OptimizationProblem`.
+- 8 vulnerabilità transitive in `npm audit` (non risolvibili senza rompere Vite/React).
+- `docker-compose.yaml`: `node:25-alpine` nel frontend Dockerfile; `ISTRUZIONI-AVVIO.md`
+  cita `node:20`.
+- Colori marker Leaflet hardcoded (non seguono il tema scuro).
+- FOUC al primo caricamento in dark mode.
+
+---
 
 ## Prossime priorità
 
-- Test frontend automatizzati (Vitest) per il punto 28 della specifica.
-- Filtri interattivi su Edifici e Interventi (punto 51).
-- Verifica responsive su tablet (punto 38).
+- Test end-to-end con Docker Compose completo.
+- Test di integrazione `OptimizationRunRepository`.
+- Persistenza scenari A/B lato backend.
+- Allineamento `ISTRUZIONI-AVVIO.md` (percorso `tepodeepseek` → `tepobozza`).
