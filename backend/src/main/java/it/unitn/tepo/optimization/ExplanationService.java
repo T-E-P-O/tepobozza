@@ -8,16 +8,19 @@ import java.util.*;
  * Produce spiegazioni deterministiche a partire dai dati e dai vincoli.
  *
  * Distinzione fondamentale:
- *  - Barriera locale (dimostrata): ESCLUSO_BUDGET_TOTALE, ESCLUSO_BUDGET_RESIDUO,
- *    ESCLUSO_INCOMPATIBILITA, ESCLUSO_PREREQUISITO.
+ *  - Barriera locale (dimostrata): ESCLUSO_ESPLICITO, ESCLUSO_INCOMPATIBILITA,
+ *    ESCLUSO_PREREQUISITO, ESCLUSO_BUDGET_TOTALE, ESCLUSO_MAX_NUMBER,
+ *    ESCLUSO_BUDGET_RESIDUO.
  *    Verificano cosa accadrebbe aggiungendo l'opzione al portafoglio corrente,
  *    senza sostituzioni. Non provano che l'opzione non possa entrare in ogni
  *    portafoglio ammissibile.
+ *
  *  - Causa non determinata: ESCLUSO_NON_OTTIMALE.
  *    Nessuna barriera locale è dimostrabile. L'opzione è esclusa dall'ottimo,
  *    ma la causa specifica non è deducibile dal solo risultato corrente.
  *
  * Non viene mai dichiarata una causa univoca non supportata dai dati.
+ * L'ordinamento delle diagnosi va dal vincolo più specifico al più generico.
  */
 @Service
 public class ExplanationService {
@@ -33,12 +36,19 @@ public class ExplanationService {
         // Pre-calcolo vincoli per lookup rapido
         Map<String, Set<String>> incompatibilities = new HashMap<>();
         Map<String, String> prerequisites = new HashMap<>();
+        Set<String> explicitExclusions = new HashSet<>();
+        List<ScenarioConstraint.MaxNumberConstraint> maxNumberConstraints = new ArrayList<>();
+
         for (ScenarioConstraint constraint : problem.constraints()) {
             if (constraint instanceof ScenarioConstraint.IncompatibilityConstraint inc) {
                 incompatibilities.computeIfAbsent(inc.optionA(), k -> new HashSet<>()).add(inc.optionB());
                 incompatibilities.computeIfAbsent(inc.optionB(), k -> new HashSet<>()).add(inc.optionA());
             } else if (constraint instanceof ScenarioConstraint.PrerequisiteConstraint pre) {
                 prerequisites.put(pre.option(), pre.requiredOption());
+            } else if (constraint instanceof ScenarioConstraint.ExcludeConstraint exc) {
+                explicitExclusions.add(exc.optionId());
+            } else if (constraint instanceof ScenarioConstraint.MaxNumberConstraint max) {
+                maxNumberConstraints.add(max);
             }
         }
 
@@ -48,6 +58,7 @@ public class ExplanationService {
             CandidateOption c = byId.get(excludedId);
             if (c == null) continue;
             explanations.add(diagnoseLocal(c, selected, incompatibilities, prerequisites,
+                    explicitExclusions, maxNumberConstraints,
                     problem.budgetCents(), budgetResidual));
         }
 
@@ -64,10 +75,18 @@ public class ExplanationService {
                                       Set<String> selected,
                                       Map<String, Set<String>> incompatibilities,
                                       Map<String, String> prerequisites,
+                                      Set<String> explicitExclusions,
+                                      List<ScenarioConstraint.MaxNumberConstraint> maxNumberConstraints,
                                       long totalBudget,
                                       long budgetResidual) {
 
-        // 1) Incompatibilità con un selezionato
+        // 1) Esclusione esplicita: il vincolo stesso nomina l'opzione
+        if (explicitExclusions.contains(c.id())) {
+            return new Explanation(c.id(), "ESCLUSO_ESPLICITO",
+                    "L'opzione è esclusa da un vincolo EscludeConstraint esplicito dello scenario.");
+        }
+
+        // 2) Incompatibilità con un selezionato
         Set<String> incomp = incompatibilities.getOrDefault(c.id(), Set.of());
         for (String other : incomp) {
             if (selected.contains(other)) {
@@ -76,26 +95,39 @@ public class ExplanationService {
             }
         }
 
-        // 2) Prerequisito non soddisfatto
+        // 3) Prerequisito non soddisfatto
         String required = prerequisites.get(c.id());
         if (required != null && !selected.contains(required)) {
             return new Explanation(c.id(), "ESCLUSO_PREREQUISITO",
                     "L'aggiunta richiede anche " + required + "; occorre ricalcolare il portafoglio.");
         }
 
-        // 3) Budget totale insufficiente per l'opzione da sola
+        // 4) Budget totale insufficiente per l'opzione da sola
         if (c.investmentCostCents() > totalBudget) {
             return new Explanation(c.id(), "ESCLUSO_BUDGET_TOTALE",
                     "Questa opzione da sola supera il budget dello scenario.");
         }
 
-        // 4) Budget residuo insufficiente per l'aggiunta singola
+        // 5) Limite massimo raggiunto (solo se l'opzione è nello scope di un vincolo
+        //    MaxNumberConstraint già saturo nel portafoglio corrente)
+        for (ScenarioConstraint.MaxNumberConstraint max : maxNumberConstraints) {
+            if (!max.optionIds().contains(c.id())) continue;
+            long selectedInScope = max.optionIds().stream().filter(selected::contains).count();
+            if (selectedInScope >= max.maxNumber()) {
+                return new Explanation(c.id(), "ESCLUSO_MAX_NUMBER",
+                        "Aggiungere questa opzione supererebbe il limite di "
+                                + max.maxNumber() + " interventi del vincolo MaxNumber; "
+                                + "il limite risulta già raggiunto nel portafoglio corrente.");
+            }
+        }
+
+        // 6) Budget residuo insufficiente per l'aggiunta singola
         if (c.investmentCostCents() > budgetResidual) {
             return new Explanation(c.id(), "ESCLUSO_BUDGET_RESIDUO",
                     "Non può essere aggiunta a questo piano senza modificare altre selezioni.");
         }
 
-        // 5) Nessuna barriera locale dimostrabile
+        // 7) Nessuna barriera locale dimostrabile
         return new Explanation(c.id(), "ESCLUSO_NON_OTTIMALE",
                 "Non selezionata nella soluzione ottima; causa specifica non determinata dal solo risultato corrente.");
     }
@@ -103,14 +135,20 @@ public class ExplanationService {
     private Explanation explainSelected(CandidateOption c,
                                         Map<String, String> prerequisites,
                                         Set<String> selected) {
-        boolean enablesOthers = prerequisites.values().stream().anyMatch(c.id()::equals);
+        // Verifica che ci sia almeno un richiedente di c.id() EFFETTIVAMENTE
+        // selezionato. Se il richiedente non è nel portafoglio, c non sta
+        // abilitando nulla.
+        boolean enablesSelectedOption = prerequisites.entrySet().stream()
+                .anyMatch(e -> e.getValue().equals(c.id()) && selected.contains(e.getKey()));
+
         boolean zeroBenefit = c.annualEnergySavingScaled() == 0
                 && c.annualEconomicSavingCents() == 0
                 && c.annualCo2ReductionScaled() == 0;
 
-        if (enablesOthers && zeroBenefit) {
+        if (enablesSelectedOption && zeroBenefit) {
             return new Explanation(c.id(), "SELEZIONATO_PREREQUISITO",
-                    "Selezionato come prerequisito per un altro intervento; non contribuisce direttamente all'obiettivo.");
+                    "Selezionato come prerequisito per un altro intervento selezionato; "
+                            + "non contribuisce direttamente all'obiettivo.");
         }
         return new Explanation(c.id(), "SELEZIONATO",
                 "Selezionato perché contribuisce all'obiettivo scelto e rispetta budget e vincoli dello scenario.");
