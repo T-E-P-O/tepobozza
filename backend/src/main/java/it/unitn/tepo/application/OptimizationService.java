@@ -13,6 +13,13 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
 import java.util.stream.Collectors;
 
+/**
+ * Orchestrazione dell'ottimizzazione.
+ *
+ * Nota sui timeout: i campi @Value sono inizializzati con il valore di
+ * default per restare utilizzabili anche quando il service viene
+ * istanziato manualmente nei test (fuori da Spring).
+ */
 @Service
 public class OptimizationService {
 
@@ -26,13 +33,13 @@ public class OptimizationService {
     private final ObjectMapper objectMapper;
 
     @Value("${tepo.solver.primary-timeout-seconds:10}")
-    private int primaryTimeoutSeconds;
+    private int primaryTimeoutSeconds = 10;
 
     @Value("${tepo.solver.secondary-timeout-seconds:3}")
-    private int secondaryTimeoutSeconds;
+    private int secondaryTimeoutSeconds = 3;
 
     @Value("${tepo.solver.lexicographic-timeout-seconds:1}")
-    private int lexicographicTimeoutSeconds;
+    private int lexicographicTimeoutSeconds = 1;
 
     public OptimizationService(BuildingRepository buildingRepository,
                                InterventionOptionRepository optionRepository,
