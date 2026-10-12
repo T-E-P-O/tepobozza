@@ -37,6 +37,7 @@ Progetto accademico — Università degli Studi di Trento, corso di Ingegneria d
 - Importa edifici da CSV con preview e validazione.
 - Espone API REST documentate con Swagger UI.
 - Offre un assistente AI **opzionale** che propone parametri di scenario da linguaggio naturale. L'AI non calcola risultati e non applica nulla senza approvazione umana.
+- Esegue analisi di sensibilità deterministica sul budget (sweep su griglia configurabile, non Monte Carlo).
 
 **Fuori dall'MVP:** IoT, digital twin, previsione dei consumi, monitoraggio post-intervento, pianificazione multi-anno, Pareto frontier, integrazione con sistemi comunali. Elencati come Future Work in `docs/requirements.md`.
 
@@ -75,15 +76,15 @@ tepobozza/
 │   ├── src/main/resources/
 │   │   ├── application.yaml
 │   │   └── db/migration/       Migrazioni Flyway (V1, V2)
-│   └── src/test/java/          Test automatici (61 verdi)
+│   └── src/test/java/          Test automatici (101 verdi)
 ├── frontend/
-│   ├── src/pages/              8 pagine: Dashboard, Mappa, Edifici,
+│   ├── src/pages/              9 pagine: Dashboard, Mappa, Edifici,
 │   │                           Interventi, Scenario, Risultato,
-│   │                           Confronto, Import
+│   │                           Confronto, Sensibilità, Import
 │   ├── src/components/         ThemeToggle, AiAssistantPanel
 │   ├── src/services/           API client, scenario store
 │   ├── src/styles/             Design tokens, base, componenti
-│   ├── src/test/               Test Vitest (15 verdi)
+│   ├── src/test/               Test Vitest (19 verdi)
 │   └── Dockerfile
 ├── docs/                       Documentazione tecnica
 │   ├── requirements.md
@@ -222,19 +223,25 @@ cd backend
 mvn clean test
 ```
 
-Atteso: **61 test verdi**.
+Atteso: **101 test verdi**.
 
 | Classe | Test | Copertura |
 |---|---|---|
 | `BruteForceSolverTest` | 12 | Oracle esaustivo: vincoli, tie-break, casi limite |
 | `OrToolsSolverTest` | 6 | CP-SAT: budget, incompatibilità, prerequisiti, maxNumber, infeasible |
-| `OrToolsSolverRegressionTest` | 10 | Multi-pass, tie-break canonico, stati, timeout |
-| `SolverParityTest` | 4 | Parità OrTools vs BruteForce |
-| `SolverEdgeCaseTest` | 8 | Prerequisiti vs non-candidati, hash canonico, IncludeConstraint |
-| `ExplanationServiceTest` | 4 | Reason code per ogni famiglia |
-| `DemoDatasetCoherenceTest` | 5 | Coerenza interna dataset (H2) |
-| `LlmAiAssistantTest` | 10 | Provider LLM con client fake, fallback, validazione |
-| `ScenarioControllerTest` | 2 | `@WebMvcTest` endpoint scenarios |
+| `OrToolsSolverRegressionTest` | 10 | Multi-pass, tie-break canonico, stati |
+| `SolverParityTest` | 4 | Parità OrTools vs BruteForce (istanze fisse) |
+| `SolverEdgeCaseTest` | 8 | Prerequisiti non-candidati, hash canonico, IncludeConstraint |
+| `SolverRandomizedParityTest` | 2 | 50 seed × 3 obiettivi = 150 confronti esaustivi |
+| `MultiObjectiveDiscriminativeTest` | 3 | Obiettivi matematicamente distinti |
+| `DemoMultiObjectiveEmpiricalTest` | 2 | Obiettivi distinti sul dataset demo |
+| `DemoDatasetCoherenceTest` | 7 | Coerenza dataset per vettore |
+| `ExplanationServiceTest` | 4 | Reason code base |
+| `ExplanationReasonCodeTest` | 8 | Reason code nuovi + regressione |
+| `SensitivityServiceTest` | 13 | Sweep, stabilità, validazione, determinismo |
+| `ImportControllerTest` | 10 | Validazione import, no scritture silenziose |
+| `LlmAiAssistantTest` | 10 | Provider LLM fake, fallback, validazione |
+| `ScenarioControllerTest` | 2 | `@WebMvcTest` |
 
 ### Frontend
 
@@ -243,7 +250,7 @@ cd frontend
 npm test
 ```
 
-Atteso: **15 test verdi**.
+Atteso: **19 test verdi**.
 
 | Classe | Test | Copertura |
 |---|---|---|
@@ -251,6 +258,7 @@ Atteso: **15 test verdi**.
 | `ComparePage.test.tsx` | 2 | Stato vuoto, tabella A vs B |
 | `scenarioStore.test.ts` | 3 | Store su sessionStorage |
 | `AiAssistantPanel.test.tsx` | 8 | Status AI, proposta, apply, reject, errore, fallback |
+| `SensitivityPage.test.tsx` | 4 | Form, esecuzione, errore, disabilitazione |
 
 ### Build frontend
 
@@ -271,6 +279,9 @@ Variabili binarie `x_i ∈ {0,1}` per ogni intervento candidato.
 - `max Σ energySaving_i · x_i` (risparmio energetico)
 - `max Σ economicSaving_i · x_i` (risparmio economico)
 - `max Σ co2Reduction_i · x_i` (riduzione CO2)
+
+Le tre funzioni sono matematicamente distinte sul dataset demo: le opzioni
+sono associate a due vettori energetici scorrelati (elettricità, gas).
 
 **Vincoli**:
 - `Σ cost_i · x_i ≤ B` (budget)
@@ -295,16 +306,31 @@ Dettagli in `docs/optimization.md`.
 
 ---
 
+## Analisi di sensibilità
+
+Sweep deterministico sul budget: `N` punti (3–51) tra `base × minFactor` e
+`base × maxFactor`, con lo stesso set di candidati e lo stesso solver.
+
+- Non è Monte Carlo: nessuna ipotesi probabilistica, nessun campionamento.
+- Non persiste: le run dell'analisi non finiscono in `optimization_runs`.
+- Non chiama LLM.
+- Classifica ogni opzione in `alwaysSelected` / `neverSelected` / `swing`.
+
+UI dedicata in `/sensitivity`. Endpoint: `POST /api/sensitivity/{id}/budget`.
+
+---
+
 ## Dataset demo
 
 10 edifici sintetici con coordinate plausibili a Trento, 6 tipologie di intervento, 26 opzioni.
 
 **Ipotesi sintetiche dichiarate:**
 
-- Tariffa energetica: **0.20 EUR/kWh** (20 cent/kWh);
-- Fattore di emissione: **0.25 kg CO2/kWh**;
+- Due vettori energetici:
+  - Elettricità (LED, FV): **0.25 EUR/kWh**, **0.10 kg CO2/kWh**;
+  - Gas metano (involucro, impianti): **0.10 EUR/kWh**, **0.20 kg CO2/kWh**.
 - Scala: 1:1 per energia (kWh), CO2 (kg), importi (cent);
-- Payback demo: **8–25 anni**.
+- Payback demo: 5–25 anni per la maggior parte degli interventi.
 
 Tutti i dati sono marcati `SYNTHETIC` in dominio e visibili come "DEMO — dati sintetici" nell'interfaccia.
 
@@ -327,6 +353,7 @@ Vedi `docs/domain-model.md` e `docs/data-readiness.md` per i dettagli.
 | GET | `/api/interventions/{id}` | Dettaglio intervento |
 | GET | `/api/intervention-types` | Elenco tipologie |
 | POST | `/api/scenarios/{id}/optimize` | Esecuzione ottimizzazione |
+| POST | `/api/sensitivity/{id}/budget` | Sweep deterministico del budget |
 | POST | `/api/imports/buildings/validate` | Validazione CSV senza scrittura |
 | POST | `/api/imports/buildings/commit` | Import CSV validi |
 | GET | `/api/runs` | Storico esecuzioni |
@@ -367,7 +394,16 @@ L'import accetta file CSV con intestazione:
 id,name,address,municipality,latitude,longitude,buildingType,surfaceM2
 ```
 
-**Caratteristiche gestite:** BOM UTF-8, fine riga LF/CRLF/CR, valori tra virgolette con virgole interne, separatori decimali `.` o `,`, righe vuote ignorate, ID duplicati rifiutati, latitudine e longitudine validate, commit parziale con report esplicito (nessuna scrittura silenziosa).
+**Campi obbligatori per una riga valida:** `id`, `name`, `address`,
+`municipality`, `buildingType` non vuoti; `latitude`, `longitude` numerici;
+`surfaceM2` numerico > 0.
+
+**Caratteristiche gestite:** BOM UTF-8, fine riga LF/CRLF/CR, valori tra
+virgolette con virgole interne, separatori decimali `.` o `,`, righe vuote
+ignorate, ID duplicati rifiutati.
+
+**Nessun valore malformato viene convertito silenziosamente in zero.** Il
+commit restituisce `skippedDetails` con riga, ID e motivi.
 
 Esempio:
 
@@ -387,7 +423,7 @@ Dettagli in `docs/api.md`.
 | `docs/requirements.md` | Requisiti funzionali e non funzionali |
 | `docs/architecture.md` | Architettura a layer |
 | `docs/domain-model.md` | Entità del dominio e invarianti |
-| `docs/optimization.md` | Modello matematico, tie-break, reason code, stati |
+| `docs/optimization.md` | Modello matematico, tie-break, reason code, stati, sensibilità |
 | `docs/api.md` | Endpoint REST |
 | `docs/ai-integration.md` | Provider LLM, configurazione, human-in-the-loop, test |
 | `docs/testing.md` | Strategia di test |
@@ -412,6 +448,7 @@ Dettagli in `docs/api.md`.
 - Nessuna previsione autonoma dei consumi o dei prezzi.
 - L'LLM è opzionale e non è attivo di default; il motore rule-based è deterministico.
 - Scenari A/B persistiti solo in `sessionStorage` (limite noto).
+- Analisi di sensibilità solo sul budget, deterministica, non probabilistica.
 
 Il progetto dimostra il metodo e il processo. L'utilità operativa reale richiede dati forniti dal Comune, validazione tecnica delle stime e revisione umana.
 

@@ -1,84 +1,87 @@
 # Matrice di tracciabilità
 
 Legenda evidenza:
-- `TEST` — esiste un test automatico che copre il requisito.
-- `MANUALE` — verificato manualmente durante il collaudo (vedi `docs/collaudo.md`).
+- `TEST` — coperto da test automatico.
+- `MANUALE` — verificato manualmente durante il collaudo.
 - `PARZIALE` — coperto in parte, con limiti documentati.
 - `DA FARE` — non ancora verificato.
 
 ## Requisiti funzionali
 
-| FR | UC | Componente | Evidenza | Note |
-|---|---|---|---|---|
-| FR-01 | UC01 | `BuildingController`, `BuildingRepository` | MANUALE | Collaudo passi 5–6 |
-| FR-02 | UC01 | `InterventionType`, `InterventionTypeRepository` | MANUALE | Catalogo mostrato in `/intervention-types` |
-| FR-03 | UC01 | `InterventionOption`, `InterventionOptionRepository` | MANUALE | Collaudo passo 7 |
-| FR-04 | UC02 | `ScenarioConstraint`, `OrToolsSolver` | TEST | `BruteForceSolverTest`, `SolverParityTest`, `OrToolsSolverRegressionTest`, `SolverEdgeCaseTest` |
-| FR-05 | UC02 | `ScenarioBuilder`, `sessionStorage` | MANUALE | Collaudo passi 8–14 |
-| FR-06 | UC02 | `BudgetConstraint`, `ScenarioBuilder` | TEST | `BruteForceSolverTest.matchesPitchExampleBudget10k` |
-| FR-07 | UC02 | `Objective`, `ScenarioBuilder` | TEST | `BruteForceSolverTest.objectiveChangeChangesResult` |
-| FR-08 | UC03 | `OptimizationService`, `OrToolsSolver` | TEST | `OrToolsSolverTest` + `SolverParityTest` |
-| FR-09 | UC04 | `ResultPage` | MANUALE | Collaudo passo 11 |
-| FR-10 | UC04 | `OptimizationResult` | TEST | `OrToolsSolverTest.picksBestCombinationWhenBudgetIsLimited` |
-| FR-11 | UC04 | `ExplanationService` | TEST | `ExplanationServiceTest` |
-| FR-12 | UC05 | `scenarioStore`, `ResultPage` | MANUALE | Collaudo passi 12–13 |
-| FR-13 | UC05 | `ComparePage` | TEST + MANUALE | `ComparePage.test.tsx` + collaudo passo 14 |
-| FR-14 | UC01, UC04 | `DataProvenance`, badge "DEMO" | MANUALE | Visibile in ogni pagina |
-| FR-15 | UC01 | `ImportController` (commons-csv) | PARZIALE | Implementato; test automatico assente; collaudo manuale precedente |
-| FR-16 | UC03 | `OptimizationRun`, `ProblemHasher`, `explanationsJson` | TEST + PARZIALE | Serializzazione Jackson; hash canonico testato; round-trip JSON non testato |
-| FR-17 | UC03 | `SolverStatus`, `StepStatus` | TEST | `OrToolsSolverRegressionTest.infeasibleDueTo...` |
-| FR-18 | — | `AiAssistant`, `AiController`, `LlmAiAssistant`, `AiAssistantPanel` | TEST | `LlmAiAssistantTest` (10) + `AiAssistantPanel.test.tsx` (8); default `RuleBasedAiAssistant`; LLM opzionale |
+| FR | Componente | Evidenza | Note |
+|---|---|---|---|
+| FR-01 Gestire edifici | `BuildingController`, `BuildingRepository` | MANUALE | Collaudo |
+| FR-02 Gestire tipologie | `InterventionType`, `InterventionTypeRepository` | MANUALE | Catalogo |
+| FR-03 Gestire opzioni | `InterventionOption`, `InterventionOptionRepository` | MANUALE | Collaudo |
+| FR-04 Gestire vincoli | `ScenarioConstraint`, `OrToolsSolver` | TEST | `BruteForceSolverTest`, `SolverParityTest`, `OrToolsSolverRegressionTest`, `SolverEdgeCaseTest`, `SolverRandomizedParityTest` |
+| FR-05 Creare scenari | `ScenarioBuilder`, `sessionStorage` | MANUALE | Collaudo |
+| FR-06 Definire budget | `BudgetConstraint`, `ScenarioBuilder` | TEST | `BruteForceSolverTest` |
+| FR-07 Scegliere obiettivo | `Objective`, `ScenarioBuilder` | TEST | `MultiObjectiveDiscriminativeTest`, `DemoMultiObjectiveEmpiricalTest` |
+| FR-08 Ottimizzare | `OptimizationService`, `OrToolsSolver` | TEST | Suite solver |
+| FR-09 Mostrare piano | `ResultPage` | MANUALE | Collaudo |
+| FR-10 Mostrare metriche | `OptimizationResult` | TEST | Suite solver |
+| FR-11 Spiegare | `ExplanationService` | TEST | `ExplanationServiceTest`, `ExplanationReasonCodeTest` |
+| FR-12 What-If | `scenarioStore`, `ResultPage` | MANUALE | Collaudo |
+| FR-13 Confrontare | `ComparePage` | TEST + MANUALE | `ComparePage.test.tsx` + collaudo |
+| FR-14 Distinguere dati | `DataProvenance`, badge "DEMO" | TEST + MANUALE | `DemoDatasetCoherenceTest.provenanceIsSyntheticForAllOptions` |
+| FR-15 Import | `ImportController` | TEST | `ImportControllerTest` (10 test) |
+| FR-16 Audit | `OptimizationRun`, `ProblemHasher` | TEST + PARZIALE | Hash canonico testato; round-trip JSON non testato |
+| FR-17 Esiti | `SolverStatus`, `StepStatus` | TEST | `OrToolsSolverRegressionTest`, `SolverRandomizedParityTest` |
+| FR-18 AI opzionale | `AiAssistant`, `LlmAiAssistant`, `AiAssistantPanel` | TEST | `LlmAiAssistantTest`, `AiAssistantPanel.test.tsx` |
+| FR-19 Multi-obiettivo distinto | `DemoDataLoader` (vettori), `OrToolsSolver` | TEST | `DemoDatasetCoherenceTest`, `MultiObjectiveDiscriminativeTest`, `DemoMultiObjectiveEmpiricalTest` |
+| FR-20 Analisi sensibilità budget | `SensitivityService`, `SensitivityController`, `SensitivityPage` | TEST | `SensitivityServiceTest` (13 test), `SensitivityPage.test.tsx` (4 test) |
 
 ## Requisiti non funzionali
 
 | NFR | Verifica | Evidenza |
 |---|---|---|
-| NFR-01 Usabilità | Utente non tecnico crea e confronta due scenari | MANUALE (collaudo) |
+| NFR-01 Usabilità | Utente crea e confronta due scenari | MANUALE |
 | NFR-02 Isolamento | Test solver senza Spring/DB | TEST (`OrToolsSolverTest`, `SolverEdgeCaseTest`) |
-| NFR-03 Riproducibilità | Run identici → selezione identica | TEST (`OrToolsSolverRegressionTest.tieBreakDeterministicAcrossRuns`) + MANUALE (3 run) |
-| NFR-04 Interpretabilità | Ogni spiegazione cita vincoli reali | TEST (`ExplanationServiceTest`) |
-| NFR-05 Sostituibilità | Adapter solver intercambiabili | TEST (`SolverParityTest`, `SolverEdgeCaseTest.bothSolversProduceSameHashForSameProblem`) |
-| NFR-06 Tracciabilità | FR → UC → componente → test | Questa matrice |
-| NFR-07 Trasparenza | Natura sintetica visibile in UI | MANUALE (badge DEMO) |
-| NFR-08 Prestazioni | Run 26 opzioni < 5s | MANUALE (log backend) |
-| NFR-09 Integrità | Snapshot coerente; risultati immutabili | PARZIALE: `optimization_runs` immutabile, ma nessuna `data_revision` esplicita |
-| NFR-10 Protezione | Nessun segreto nel repo | Verificato: `LLM_API_KEY=` vuota in `.env.example`; `.env` in `.gitignore`; grep su diff non rileva chiavi |
+| NFR-03 Riproducibilità | Run identici → selezione identica | TEST (`OrToolsSolverRegressionTest`, `SolverRandomizedParityTest`) |
+| NFR-04 Interpretabilità | Spiegazioni citano vincoli reali | TEST (`ExplanationServiceTest`, `ExplanationReasonCodeTest`) |
+| NFR-05 Sostituibilità | Adapter solver intercambiabili | TEST (`SolverParityTest`, `SolverRandomizedParityTest`) |
+| NFR-06 Tracciabilità | FR → componente → test | Questa matrice |
+| NFR-07 Trasparenza | Natura sintetica visibile | TEST (`DemoDatasetCoherenceTest`) + MANUALE |
+| NFR-08 Prestazioni | Run 26 opzioni < 5s | MANUALE |
+| NFR-09 Integrità | Snapshot immutabile versionato | PARZIALE — audit immutabile, ma manca `dataRevision` |
+| NFR-10 Protezione | Nessun segreto nel repo | Ispezione |
 
-## Copertura per famiglia di test
-
-### Backend (61)
+## Copertura per famiglia di test — backend
 
 | Classe | Test | Copertura |
 |---|---|---|
 | `BruteForceSolverTest` | 12 | Oracle esaustivo: vincoli, tie-break, casi limite |
 | `OrToolsSolverTest` | 6 | CP-SAT: budget, incompatibilità, prerequisiti, maxNumber, infeasible |
 | `OrToolsSolverRegressionTest` | 10 | Multi-pass, tie-break canonico, stati |
-| `SolverParityTest` | 4 | Parità OrTools vs BruteForce |
-| `SolverEdgeCaseTest` | 8 | Prerequisiti vs non-candidati, hash canonico, IncludeConstraint |
-| `ExplanationServiceTest` | 4 | Reason code per ogni famiglia |
-| `DemoDatasetCoherenceTest` | 5 | Coerenza dataset (H2) |
-| `LlmAiAssistantTest` | 10 | Provider LLM, fallback, validazione |
-| `ScenarioControllerTest` | 2 | `@WebMvcTest` endpoint scenarios |
+| `SolverParityTest` | 4 | Parità OrTools vs BruteForce (istanze fisse) |
+| `SolverEdgeCaseTest` | 8 | Prerequisiti non-candidati, hash canonico, IncludeConstraint |
+| `SolverRandomizedParityTest` | 2 | 50 seed × 3 obiettivi = 150 confronti esaustivi + 150 verifiche di auto-consistenza |
+| `MultiObjectiveDiscriminativeTest` | 3 | Obiettivi matematicamente distinti (istanze costruite) |
+| `DemoMultiObjectiveEmpiricalTest` | 2 | Obiettivi distinti sul dataset demo reale |
+| `DemoDatasetCoherenceTest` | 7 | Coerenza dataset per vettore + non-proporzionalità |
+| `ExplanationServiceTest` | 4 | Reason code base |
+| `ExplanationReasonCodeTest` | 8 | Reason code nuovi + regressione |
+| `SensitivityServiceTest` | 13 | Sweep, stabilità, validazione, determinismo |
+| `ImportControllerTest` | 10 | Validazione import, no scritture silenziose |
+| `LlmAiAssistantTest` | 10 | Provider LLM fake, fallback, validazione |
+| `ScenarioControllerTest` | 2 | `@WebMvcTest` |
 
-### Frontend (15)
+**Totale backend**: 101.
+
+## Copertura per famiglia di test — frontend
 
 | Classe | Test | Copertura |
 |---|---|---|
 | `Dashboard.test.tsx` | 2 | Stato vuoto, principio architetturale |
 | `ComparePage.test.tsx` | 2 | Stato vuoto, tabella A vs B |
-| `scenarioStore.test.ts` | 3 | Store su sessionStorage |
+| `scenarioStore.test.ts` | 3 | Store sessionStorage |
 | `AiAssistantPanel.test.tsx` | 8 | Status AI, proposta, apply, reject, errore, fallback |
+| `SensitivityPage.test.tsx` | 4 | Form, esecuzione, errore, disabilitazione |
+
+**Totale frontend**: 19.
 
 ## Riepilogo
 
-- **TEST**: 15 FR/NFR con copertura automatica.
-- **MANUALE**: 8 FR/NFR verificati nel collaudo.
-- **PARZIALE**: FR-15 (import CSV), FR-16 (round-trip JSON), NFR-09 (snapshot versionato).
-
-## Aggiornamenti Fase C
-
-- FR-04, FR-16, FR-17: copertura estesa dai nuovi test `SolverEdgeCaseTest`.
-- FR-18: nuova copertura automatica backend e frontend.
-- NFR-05: copertura estesa al caso hash canonico coerente tra solver.
-
-Vedi `docs/collaudo.md` per i dettagli del collaudo manuale.
+- **TEST**: 20 FR/NFR con copertura automatica (101 + 19 test verdi).
+- **MANUALE**: collaudo in `docs/collaudo.md`.
+- **PARZIALE**: FR-16 (round-trip JSON), NFR-09 (snapshot versionato).

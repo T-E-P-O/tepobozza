@@ -2,8 +2,8 @@
 
 Base URL: `http://localhost:8080`.
 
-Tutte le risposte sono JSON. Gli errori restituiscono una struttura
-leggibile tramite `GlobalExceptionHandler`.
+Tutte le risposte sono JSON. Gli errori restituiscono una struttura leggibile
+tramite `GlobalExceptionHandler`.
 
 ## Edifici
 
@@ -28,7 +28,7 @@ leggibile tramite `GlobalExceptionHandler`.
 
 | Metodo | Path | Descrizione |
 |---|---|---|
-| GET | `/api/map/buildings` | Edifici con coordinate per la mappa |
+| GET | `/api/map/buildings` | Edifici con coordinate |
 
 ## Scenari
 
@@ -92,7 +92,67 @@ leggibile tramite `GlobalExceptionHandler`.
 | `FEASIBLE` | Ammissibile, ottimalità non provata |
 | `INFEASIBLE` | Nessuna soluzione ammissibile |
 | `UNKNOWN` | Solver non ha concluso entro il timeout |
-| `MODEL_INVALID` | Input non conforme (es. candidati > limite brute force) |
+| `MODEL_INVALID` | Input non conforme |
+
+## Analisi di sensibilità
+
+| Metodo | Path | Descrizione |
+|---|---|---|
+| POST | `/api/sensitivity/{id}/budget` | Sweep deterministico sul budget |
+
+### Payload
+
+```json
+{
+  "baseBudgetCents": 50000000,
+  "objective": "ENERGY_SAVING",
+  "candidateOptionIds": ["OPT-001", "OPT-002"],
+  "points": 11,
+  "minFactor": 0.5,
+  "maxFactor": 1.5
+}
+```
+
+| Campo | Regola |
+|---|---|
+| `baseBudgetCents` | ≥ 0 |
+| `objective` | Non nullo |
+| `candidateOptionIds` | Non vuoto; tutti gli ID devono esistere |
+| `points` | `null` → default 11; altrimenti 3–51 |
+| `minFactor` | `null` → default 0.5; altrimenti > 0 e < `maxFactor` |
+| `maxFactor` | `null` → default 1.5; altrimenti > 0 e > `minFactor` |
+
+**Non persiste nulla. Non chiama il provider LLM. Ogni punto è un `OptimizationProblem` indipendente.**
+
+### Risposta
+
+```json
+{
+  "objective": "ENERGY_SAVING",
+  "baseBudgetCents": 50000000,
+  "minBudgetCents": 25000000,
+  "maxBudgetCents": 75000000,
+  "points": 11,
+  "grid": [
+    {
+      "budgetCents": 25000000,
+      "solverStatus": "OPTIMAL",
+      "optimalityProven": true,
+      "objectiveValue": 12345,
+      "totalInvestmentCents": 24000000,
+      "remainingBudgetCents": 1000000,
+      "numSelected": 4,
+      "selectedOptionsId": ["OPT-001", "OPT-002", "OPT-003", "OPT-004"]
+    }
+  ],
+  "alwaysSelected": ["OPT-001"],
+  "neverSelected": ["OPT-025"],
+  "swing": ["OPT-002", "OPT-003"]
+}
+```
+
+`alwaysSelected`, `neverSelected`, `swing` sono disgiunti e la loro unione è
+l'intero set di candidati.
 
 ## Storico esecuzioni
 
@@ -101,6 +161,8 @@ leggibile tramite `GlobalExceptionHandler`.
 | GET | `/api/runs` | Tutte le esecuzioni |
 | GET | `/api/runs/{id}` | Dettaglio per `runId` |
 | GET | `/api/runs/scenario/{scenarioId}` | Esecuzioni per scenario |
+
+L'analisi di sensibilità **non** produce righe in questa tabella.
 
 ## Import CSV
 
@@ -115,16 +177,31 @@ leggibile tramite `GlobalExceptionHandler`.
 id,name,address,municipality,latitude,longitude,buildingType,surfaceM2
 ```
 
-**Caratteristiche gestite:** BOM UTF-8, fine riga LF/CRLF/CR,
-virgolette con virgole interne, decimali `.` o `,`, righe vuote ignorate,
-ID duplicati rifiutati, latitudine e longitudine validate, commit parziale
-con report esplicito (nessuna scrittura silenziosa).
+**Campi obbligatori per una riga valida:** `id`, `name`, `address`,
+`municipality`, `buildingType` non vuoti; `latitude`, `longitude` numerici;
+`surfaceM2` numerico > 0.
+
+Caratteristiche gestite: BOM UTF-8, fine riga LF/CRLF/CR, virgolette con virgole
+interne, decimali `.` o `,`, righe vuote ignorate, ID duplicati rifiutati.
+
+**Nessun valore malformato viene convertito silenziosamente in zero.**
+Il commit restituisce `skippedDetails` con riga, ID e motivi.
 
 ### Payload `validate` / `commit`
 
 ```json
+{ "content": "id,name,address,…\nBLD-101,…" }
+```
+
+### Risposta `commit`
+
+```json
 {
-  "content": "id,name,address,…\nBLD-101,…"
+  "inserted": 3,
+  "skipped": 1,
+  "skippedDetails": [
+    { "row": 4, "id": "BLD-999", "errors": ["Superficie non valida"] }
+  ]
 }
 ```
 
@@ -151,7 +228,7 @@ con report esplicito (nessuna scrittura silenziosa).
 {
   "budgetCents": 50000000,
   "objective": "CO2_REDUCTION",
-  "candidateOptionIds": ["OPT-001", "OPT-002", "…"],
+  "candidateOptionIds": ["OPT-001", "OPT-002"],
   "explanation": "…",
   "source": "RULE_BASED",
   "missingInformation": [],
@@ -160,29 +237,17 @@ con report esplicito (nessuna scrittura silenziosa).
 }
 ```
 
-**`source`**: `RULE_BASED`, `LLM`, o `LLM_FALLBACK_RULE_BASED`.
+`source`: `RULE_BASED` | `LLM` | `LLM_FALLBACK_RULE_BASED`.
 
-**Comportamento:** la proposta non è applicata automaticamente. Il client
-deve presentarla all'utente per approvazione esplicita. `requiresHumanReview`
-è sempre `true`.
-
-**Errori:**
-- 400 se `text` è vuoto o > 2000 caratteri.
-- 200 con `warnings` non vuoti se il provider LLM non è configurato o in errore
-  (il fallback è trasparente).
+La proposta non è applicata automaticamente. `requiresHumanReview` è sempre `true`.
 
 ### `GET /api/ai/status`
-
-**Response:**
 
 ```json
 {
   "llmConfigured": false,
   "activeProvider": "rule-based",
-  "notes": [
-    "Provider LLM non configurato: l'assistente usa un motore deterministico locale.",
-    "Per attivare l'LLM: profilo Spring 'llm' + variabile LLM_API_KEY."
-  ]
+  "notes": ["Provider LLM non configurato: …"]
 }
 ```
 
@@ -195,18 +260,16 @@ deve presentarla all'utente per approvazione esplicita. `requiresHumanReview`
 
 ## Convenzioni errori
 
-Errori restituiscono JSON leggibile prodotto da `GlobalExceptionHandler`.
-Nessuno stack trace è esposto al client.
-
 | Codice | Causa tipica |
 |---|---|
 | 400 | Validazione fallita (`IllegalArgumentException`) |
 | 404 | Risorsa non trovata |
-| 500 | Errore interno (`IllegalStateException` o runtime) |
+| 500 | Errore interno |
+
+Nessuno stack trace è esposto al client.
 
 ## Note
 
-- Nessuna autenticazione: l'app è destinata a uso locale / demo.
-- CORS non configurato: in sviluppo il frontend è servito con proxy Vite;
-  in Docker, nginx fa da reverse proxy su `/api/`.
-- Le risposte INFEASIBLE sono 200 con `solverStatus: "INFEASIBLE"`, non errori.
+- Nessuna autenticazione: uso locale / demo.
+- Le risposte `INFEASIBLE` sono 200 con `solverStatus: "INFEASIBLE"`.
+- L'analisi di sensibilità non è considerata "audit" e non compare in `/api/runs`.

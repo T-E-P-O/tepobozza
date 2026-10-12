@@ -23,6 +23,9 @@ dove `w_i` dipende dall'obiettivo scelto:
 | `CO2_REDUCTION` | `annualCo2ReductionScaled_i` |
 
 Non viene mai combinata una somma pesata di unità diverse.
+Le tre funzioni sono **matematicamente distinte** sul dataset demo
+(verificato da `MultiObjectiveDiscriminativeTest` e
+`DemoMultiObjectiveEmpiricalTest`).
 
 ### Vincoli
 
@@ -50,8 +53,7 @@ esegue in sequenza:
    se infeasible, forza `x_i = 0`.
 
 Ogni passo ricostruisce **integralmente** il `CpModel` e applica le forzature
-accumulate. Il modello precedente viene scartato. Questo evita la corruzione
-del modello in caso di `UNSAT` intermedio.
+accumulate. Il modello precedente viene scartato.
 
 Se un passo non conclude (`UNKNOWN`), la fase successiva non viene eseguita e
 `canonicalTieBreakCompleted` resta `false`.
@@ -64,10 +66,11 @@ Configurabili in `application.yaml` sotto `tepo.solver.*`, esposti via env:
 |---|---|---|
 | `TEPO_SOLVER_PRIMARY_TIMEOUT` | 10 s | Obiettivo primario |
 | `TEPO_SOLVER_SECONDARY_TIMEOUT` | 3 s | Costo, count |
-| `TEPO_SOLVER_LEX_TIMEOUT` | 1 s | Ogni iterazione del tie-break lessicografico |
+| `TEPO_SOLVER_LEX_TIMEOUT` | 1 s | Ogni iterazione del tie-break |
 
-I timeout sono letti da `OptimizationService` tramite `@Value` e passati
-al solver in un record `SolverConfiguration(primary, secondary, lexicographic)`.
+I timeout sono letti da `OptimizationService` e `SensitivityService` tramite
+`@Value` con initializer di default, per restare utilizzabili anche in test
+unitari che istanziano il service con `new`.
 
 ## Stati del solver
 
@@ -92,9 +95,7 @@ rappresentazione canonica dell'istanza.
 - Ordina gli `optionIds` di `MaxNumberConstraint`.
 - Include solo campi semanticamente rilevanti: `schemaVersion`, `objective`,
   `budgetCents`, `coefficientScale`, opzioni e vincoli.
-- **Esclude** `snapshotId`, che è metadato di sessione e non di contenuto.
-
-`snapshotId` è attualmente pari a `scenarioId` e non contribuisce al calcolo.
+- **Esclude** `snapshotId`, metadato di sessione.
 
 ## Validazione indipendente
 
@@ -104,8 +105,10 @@ rappresentazione canonica dell'istanza.
 - applica lo stesso tie-break lessicografico;
 - limite `MAX_N = 20`.
 
-È usato in `SolverParityTest` e `SolverEdgeCaseTest` per confrontare le
-decisioni rispetto a `OrToolsSolver` su istanze piccole.
+È usato in:
+- `SolverParityTest` e `SolverEdgeCaseTest` (istanze costruite a mano);
+- `SolverRandomizedParityTest` (50 seed × 3 obiettivi = 150 confronti esaustivi,
+  più 150 verifiche di auto-consistenza indipendenti dal solver).
 
 ## Reason code delle spiegazioni
 
@@ -120,10 +123,15 @@ portafoglio ammissibile.
 
 | Reason code | Significato |
 |---|---|
+| `ESCLUSO_ESPLICITO` | L'opzione è nominata da un `ExcludeConstraint` esplicito. |
 | `ESCLUSO_INCOMPATIBILITA` | L'aggiunta viola un'incompatibilità con un'opzione già selezionata. |
 | `ESCLUSO_PREREQUISITO` | L'aggiunta richiede un prerequisito non selezionato. |
 | `ESCLUSO_BUDGET_TOTALE` | L'opzione da sola supera il budget totale dello scenario. |
+| `ESCLUSO_MAX_NUMBER` | L'opzione è nello scope di un `MaxNumberConstraint` e il limite è già raggiunto nel portafoglio corrente. |
 | `ESCLUSO_BUDGET_RESIDUO` | L'opzione non entra nel budget residuo senza sostituzioni. |
+
+L'ordine in cui le diagnosi vengono tentate è quello della tabella: dal vincolo
+più specifico (esclusione esplicita) al più generico (budget residuo).
 
 ### Causa non determinata
 
@@ -136,62 +144,65 @@ portafoglio ammissibile.
 | Reason code | Significato |
 |---|---|
 | `SELEZIONATO` | Selezionato perché contribuisce all'obiettivo e rispetta vincoli e budget. |
-| `SELEZIONATO_PREREQUISITO` | Selezionato come prerequisito per un altro intervento, pur non contribuendo direttamente all'obiettivo (benefici nulli). |
+| `SELEZIONATO_PREREQUISITO` | Selezionato come prerequisito per un altro intervento **anch'esso selezionato**, pur non contribuendo direttamente all'obiettivo. |
 
 ### Limite dichiarato
 
 Le spiegazioni non sostituiscono il giudizio tecnico o amministrativo. Non
-promettono una prova di causalità globale. La distinzione tra barriera locale
-e causa non determinata è esplicita nel codice e nei test.
+promettono una prova di causalità globale.
+
+**Multi-ottimi non rilevati**: se esistono più portafogli con lo stesso valore
+ottimo, il solver ne restituisce uno solo e non segnala l'esistenza di
+alternative. Non è implementato un rilevatore di equivalenza.
+
+## Analisi di sensibilità sul budget
+
+`SensitivityService` esegue uno **sweep deterministico** sul budget:
+
+- griglia di `N` punti (3 ≤ N ≤ 51), interpolazione lineare tra
+  `base × minFactor` e `base × maxFactor`;
+- stesso set di candidati, stesso solver (`OrToolsSolver`), stessi timeout;
+- ogni punto è un `OptimizationProblem` indipendente;
+- **nessuna persistenza**: le run dell'analisi non finiscono in `optimization_runs`;
+- **nessuna chiamata LLM**;
+- **non è Monte Carlo**: non ci sono ipotesi probabilistiche né campionamenti casuali.
+
+### Output
+
+Per ogni punto:
+- `budgetCents`, `solverStatus`, `optimalityProven`, `objectiveValue`,
+  `totalInvestmentCents`, `remainingBudgetCents`, `numSelected`, `selectedOptionsId`.
+
+Classificazione delle opzioni su tutta la griglia:
+- **alwaysSelected**: presente in tutti i punti;
+- **neverSelected**: assente in tutti i punti;
+- **swing**: presente in almeno un punto e assente in almeno un altro.
+
+### Limiti dichiarati
+
+- Varia **solo** il budget. Non varia costi, risparmi, fattori di emissione.
+- Non presenta intervalli di confidenza né valori attesi probabilistici.
+- Non è una previsione: è un'esplorazione del comportamento del solver al
+  variare di un parametro di scenario.
 
 ## Audit e persistenza
 
-Ogni chiamata al solver produce una riga in `optimization_runs`:
+Ogni chiamata a `POST /api/scenarios/{id}/optimize` produce una riga in
+`optimization_runs` (vedi `docs/domain-model.md`).
 
-| Campo | Contenuto |
-|---|---|
-| `run_id` | UUID generato al momento di `solve()` |
-| `scenario_id` | Identificativo dello scenario (attualmente `SCN-DEMO`) |
-| `problem_hash` | Hash canonico |
-| `snapshot_id` | Attualmente pari a `scenario_id` |
-| `objective` | Obiettivo scelto |
-| `budget_cents` | Budget in cent |
-| `total_investment_cents` | Investimento totale |
-| `remaining_budget_cents` | Budget − investimento |
-| `objective_value` | Valore dell'obiettivo raggiunto |
-| `total_energy_saving` | Risparmio energetico totale |
-| `total_economic_saving_cents` | Risparmio economico totale |
-| `total_co2_reduction` | Riduzione CO2 totale |
-| `solver_status` | Stato del solver |
-| `optimality_proven` | Flag |
-| `canonical_tie_break_completed` | Flag |
-| `selected_options_json` | Lista ID selezionati (JSON) |
-| `excluded_options_json` | Lista ID esclusi (JSON) |
-| `explanations_json` | Lista spiegazioni (JSON) |
-| `created_at` | Timestamp |
-
-**Nota:** il round-trip di `explanations_json` (serializzazione →
-deserializzazione) non è ancora coperto da test automatici.
+Le chiamate a `POST /api/sensitivity/{id}/budget` **non** persistono nulla.
 
 ## Determinismo e riproducibilità
 
-Configurazione CP-SAT:
-
-- `num_search_workers = 1`
-- `random_seed = 0`
-
-Combinata con il tie-break lessicografico a 4 passi e con l'hash canonico,
-questo garantisce che due chiamate identiche sullo stesso problema producano:
-
-- stesso `selectedOptionsId` (stesso ordine canonico);
+Configurazione CP-SAT: `num_search_workers = 1`, `random_seed = 0`.
+Combinata con il tie-break lessicografico a 4 passi e l'hash canonico,
+due chiamate identiche producono:
+- stesso `selectedOptionsId`;
 - stesso `totalInvestmentCents`;
 - stesso `objectiveValue`;
 - stesso `problemHash`.
 
-Il `runId` resta diverso (UUID per esecuzione).
-
-Verificato manualmente su 3 run identici (collaudo 2026-10-09) e coperto da
-`OrToolsSolverRegressionTest.tieBreakDeterministicAcrossRuns`.
+Il `runId` cambia (UUID per esecuzione).
 
 ## Limiti
 
@@ -199,5 +210,4 @@ Verificato manualmente su 3 run identici (collaudo 2026-10-09) e coperto da
 - Nessuna Pareto frontier.
 - Nessun multi-anno né scheduling.
 - `BruteForceSolver` limitato a N ≤ 20.
-- `coefficientScale` in `OptimizationProblem` è campo dichiarato ma non usato;
-  riservato per scaling futuro.
+- `coefficientScale` dichiarato ma non usato.
