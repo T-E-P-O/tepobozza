@@ -1,10 +1,5 @@
-import type {
-  AiStatus,
-  Building,
-  InterventionOption,
-  OptimizationResult,
-  ScenarioProposalDto
-} from '../types';
+import type { AiStatus, Building, InterventionOption, OptimizationResult,
+  ScenarioProposalDto, SensitivityResult } from '../types';
 
 const BASE = '/api';
 
@@ -67,6 +62,35 @@ export async function proposeWithAi(text: string): Promise<ScenarioProposalDto> 
     throw new Error(
       body && body.length > 0 ? `Errore assistente AI: ${body}` : 'Errore assistente AI'
     );
+  }
+  return r.json();
+}
+
+/* ---- Analisi di sensibilità ---- */
+
+export type SensitivityRequest = {
+  baseBudgetCents: number;
+  objective: string;
+  candidateOptionIds: string[];
+  points?: number;
+  minFactor?: number;
+  maxFactor?: number;
+};
+
+export async function runSensitivityBudget(
+  scenarioId: string,
+  payload: SensitivityRequest
+): Promise<SensitivityResult> {
+  const r = await fetch(`${BASE}/sensitivity/${scenarioId}/budget`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if (!r.ok) {
+    const body = await r.text().catch(() => '');
+    throw new Error(body && body.length > 0
+      ? `Errore analisi di sensibilità: ${body}`
+      : 'Errore analisi di sensibilità');
   }
   return r.json();
 }

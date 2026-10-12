@@ -9,6 +9,7 @@ import ScenarioBuilder from './pages/ScenarioBuilder';
 import ResultPage from './pages/ResultPage';
 import ComparePage from './pages/ComparePage';
 import ImportPage from './pages/ImportPage';
+import SensitivityPage from './pages/SensitivityPage';
 import ThemeToggle from './components/ThemeToggle';
 import './styles/tokens.css';
 import './styles/base.css';
@@ -31,6 +32,7 @@ function App() {
           <Link to="/scenario">Scenario</Link>
           <Link to="/result">Risultato</Link>
           <Link to="/compare">Confronto</Link>
+          <Link to="/sensitivity">Sensibilità</Link>
           <Link to="/import">Import</Link>
         </nav>
         <ThemeToggle />
@@ -45,6 +47,7 @@ function App() {
           <Route path="/scenario" element={<ScenarioBuilder />} />
           <Route path="/result" element={<ResultPage />} />
           <Route path="/compare" element={<ComparePage />} />
+          <Route path="/sensitivity" element={<SensitivityPage />} />
           <Route path="/import" element={<ImportPage />} />
         </Routes>
       </main>

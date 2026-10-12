@@ -69,3 +69,28 @@ export type AiStatus = {
   activeProvider: string;
   notes: string[];
 };
+
+/* ---- Analisi di sensibilità ---- */
+
+export type SensitivityPoint = {
+  budgetCents: number;
+  solverStatus: string;
+  optimalityProven: boolean;
+  objectiveValue: number;
+  totalInvestmentCents: number;
+  remainingBudgetCents: number;
+  numSelected: number;
+  selectedOptionsId: string[];
+};
+
+export type SensitivityResult = {
+  objective: string;
+  baseBudgetCents: number;
+  minBudgetCents: number;
+  maxBudgetCents: number;
+  points: number;
+  grid: SensitivityPoint[];
+  alwaysSelected: string[];
+  neverSelected: string[];
+  swing: string[];
+};
