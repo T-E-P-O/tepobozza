@@ -14,6 +14,22 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.util.*;
 
+/**
+ * Import CSV degli edifici.
+ *
+ * Regola: nessun valore malformato viene convertito silenziosamente.
+ *  - La validazione (`/validate`) restituisce, per ogni riga, la lista
+ *    degli errori rilevati.
+ *  - Il commit (`/commit`) scrive solo le righe che passano la stessa
+ *    validazione applicata alla preview. Le altre sono conteggiate come
+ *    `skipped`, mai scritte con valori di default.
+ *
+ * Campi obbligatori per una riga valida:
+ *   id, name, address, municipality, latitude, longitude, buildingType, surfaceM2
+ * - `latitude`, `longitude`: numerici.
+ * - `surfaceM2`: numerico > 0.
+ * - `buildingType`, `municipality`: non vuoti.
+ */
 @RestController
 @RequestMapping("/api/imports")
 public class ImportController {
@@ -36,25 +52,28 @@ public class ImportController {
         List<ImportRow> rows = new ArrayList<>();
         int valid = 0, invalid = 0;
 
+        CSVParser parser;
         try {
-            CSVParser parser = parseCsv(payload.content());
-
-            if (!parser.getHeaderNames().containsAll(REQUIRED_HEADERS)) {
-                return ResponseEntity.badRequest().body(new ImportPreview(0, 0, List.of(
-                        new ImportRow(0, "", List.of("Header mancanti. Attesi: " + REQUIRED_HEADERS))
-                )));
-            }
-
-            for (CSVRecord record : parser) {
-                List<String> errors = validateBuildingRecord(record);
-                String id = safeGet(record, "id");
-                if (errors.isEmpty()) valid++; else invalid++;
-                rows.add(new ImportRow((int) record.getRecordNumber(), id, errors));
-            }
+            parser = parseCsv(payload.content());
         } catch (IOException | IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(new ImportPreview(0, 0, List.of(
                     new ImportRow(0, "", List.of("CSV non valido: " + ex.getMessage()))
             )));
+        }
+
+        if (!parser.getHeaderNames().containsAll(REQUIRED_HEADERS)) {
+            Set<String> missing = new HashSet<>(REQUIRED_HEADERS);
+            missing.removeAll(parser.getHeaderNames());
+            return ResponseEntity.badRequest().body(new ImportPreview(0, 0, List.of(
+                    new ImportRow(0, "", List.of("Header mancanti: " + missing))
+            )));
+        }
+
+        for (CSVRecord record : parser) {
+            List<String> errors = validateBuildingRecord(record);
+            String id = safeGet(record, "id");
+            if (errors.isEmpty()) valid++; else invalid++;
+            rows.add(new ImportRow((int) record.getRecordNumber(), id, errors));
         }
 
         return ResponseEntity.ok(new ImportPreview(valid, invalid, rows));
@@ -63,40 +82,75 @@ public class ImportController {
     @PostMapping("/buildings/commit")
     public ResponseEntity<Map<String, Object>> commitBuildings(@RequestBody CsvPayload payload) {
         int inserted = 0, skipped = 0;
+        List<Map<String, Object>> skippedDetails = new ArrayList<>();
 
+        CSVParser parser;
         try {
-            CSVParser parser = parseCsv(payload.content());
-            for (CSVRecord record : parser) {
-                List<String> errors = validateBuildingRecord(record);
-                if (!errors.isEmpty()) { skipped++; continue; }
-
-                String id = safeGet(record, "id");
-                if (buildingRepo.existsById(id)) { skipped++; continue; }
-
-                Building b = new Building(
-                        id,
-                        safeGet(record, "name"),
-                        safeGet(record, "address"),
-                        safeGet(record, "municipality"),
-                        parseDouble(safeGet(record, "latitude")),
-                        parseDouble(safeGet(record, "longitude")),
-                        safeGet(record, "buildingType"),
-                        parseDouble(safeGet(record, "surfaceM2")),
-                        null, null, null,
-                        DataProvenance.SYNTHETIC
-                );
-                buildingRepo.save(b);
-                inserted++;
-            }
+            parser = parseCsv(payload.content());
         } catch (IOException | IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of(
                     "error", "CSV non valido: " + ex.getMessage(),
-                    "inserted", inserted,
-                    "skipped", skipped
+                    "inserted", 0,
+                    "skipped", 0
             ));
         }
 
-        return ResponseEntity.ok(Map.of("inserted", inserted, "skipped", skipped));
+        if (!parser.getHeaderNames().containsAll(REQUIRED_HEADERS)) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", "Header mancanti",
+                    "inserted", 0,
+                    "skipped", 0
+            ));
+        }
+
+        for (CSVRecord record : parser) {
+            List<String> errors = validateBuildingRecord(record);
+            if (!errors.isEmpty()) {
+                skipped++;
+                skippedDetails.add(Map.of(
+                        "row", record.getRecordNumber(),
+                        "id", safeGet(record, "id"),
+                        "errors", errors
+                ));
+                continue;
+            }
+
+            String id = safeGet(record, "id");
+            // NB: validateBuildingRecord ha già verificato l'assenza dell'ID;
+            // il doppio check qui è difensivo contro corse concorrenti.
+            if (buildingRepo.existsById(id)) {
+                skipped++;
+                skippedDetails.add(Map.of(
+                        "row", record.getRecordNumber(),
+                        "id", id,
+                        "errors", List.of("ID già esistente")
+                ));
+                continue;
+            }
+
+            Building b = new Building(
+                    id,
+                    safeGet(record, "name"),
+                    safeGet(record, "address"),
+                    safeGet(record, "municipality"),
+                    requireDouble(record, "latitude"),
+                    requireDouble(record, "longitude"),
+                    safeGet(record, "buildingType"),
+                    requireDouble(record, "surfaceM2"),
+                    null, null, null,
+                    DataProvenance.SYNTHETIC
+            );
+            buildingRepo.save(b);
+            inserted++;
+        }
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("inserted", inserted);
+        body.put("skipped", skipped);
+        if (!skippedDetails.isEmpty()) {
+            body.put("skippedDetails", skippedDetails);
+        }
+        return ResponseEntity.ok(body);
     }
 
     // ---------- helpers ----------
@@ -121,16 +175,30 @@ public class ImportController {
 
     private List<String> validateBuildingRecord(CSVRecord record) {
         List<String> errors = new ArrayList<>();
+
         String id = safeGet(record, "id");
         if (id.isEmpty()) {
             errors.add("ID mancante");
         } else if (buildingRepo.existsById(id)) {
             errors.add("ID già esistente nel catalogo");
         }
-        if (safeGet(record, "name").isEmpty()) errors.add("Nome mancante");
 
-        if (tryParseDouble(safeGet(record, "latitude")) == null) errors.add("Latitudine non valida");
-        if (tryParseDouble(safeGet(record, "longitude")) == null) errors.add("Longitudine non valida");
+        if (safeGet(record, "name").isEmpty())        errors.add("Nome mancante");
+        if (safeGet(record, "address").isEmpty())     errors.add("Indirizzo mancante");
+        if (safeGet(record, "municipality").isEmpty())errors.add("Comune mancante");
+        if (safeGet(record, "buildingType").isEmpty())errors.add("Tipo edificio mancante");
+
+        if (tryParseDouble(safeGet(record, "latitude")) == null)
+            errors.add("Latitudine non valida");
+        if (tryParseDouble(safeGet(record, "longitude")) == null)
+            errors.add("Longitudine non valida");
+
+        Double surface = tryParseDouble(safeGet(record, "surfaceM2"));
+        if (surface == null) {
+            errors.add("Superficie non valida");
+        } else if (surface <= 0.0) {
+            errors.add("Superficie deve essere > 0");
+        }
 
         return errors;
     }
@@ -144,11 +212,21 @@ public class ImportController {
         }
     }
 
-    private double parseDouble(String s) {
-        Double v = tryParseDouble(s);
-        return v == null ? 0.0 : v;
+    /**
+     * Estrae un double obbligatorio. Se il valore è assente o malformato,
+     * lancia. Il chiamante deve aver già verificato con validateBuildingRecord.
+     * Questo è un guard difensivo, non un percorso normale.
+     */
+    private double requireDouble(CSVRecord record, String column) {
+        Double v = tryParseDouble(safeGet(record, column));
+        if (v == null) {
+            throw new IllegalArgumentException(
+                    "Campo '" + column + "' non valido alla riga " + record.getRecordNumber());
+        }
+        return v;
     }
 
+    /** Tenta il parsing. Ritorna null su input assente o malformato. */
     private Double tryParseDouble(String s) {
         if (s == null || s.isEmpty()) return null;
         try {
