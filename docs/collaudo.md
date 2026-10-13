@@ -120,7 +120,8 @@ Commit verificato: `9e786f48d69b77d0c0f7811991aa2c9652cf7c62`.
 
 Tutti i comandi di verifica passano. Multi-obiettivo dimostrato empiricamente
 sul dataset demo dopo la correzione dei vettori energetici. Determinismo
-confermato nuovamente dopo Fase C e Fase E.
+confermato nuovamente dopo Fase C e Fase E. Deployment Docker Compose
+end-to-end verificato.
 
 ### Comandi eseguiti
 
@@ -128,10 +129,13 @@ confermato nuovamente dopo Fase C e Fase E.
 |---|---|---|
 | `git rev-parse HEAD` | `9e786f4...` | Coincide con commit atteso |
 | `git status --short` | vuoto | Working tree pulito |
-| `mvn -B clean test` | **101/101 verdi** | +40 rispetto a Sessione 2 |
-| `docker compose ps` | `tepo-db` healthy | PostgreSQL 16.15 |
+| `mvn -B clean test` | **104/104 verdi** | +43 rispetto a Sessione 2 |
+| `docker compose ps` (solo db) | `tepo-db` healthy | PostgreSQL 16.15 |
 | `mvn spring-boot:run -Dspring-boot.run.profiles=demo` | `Started TepoApplication in 5.755 seconds` | Flyway: schema v2 già applicato |
 | `npm run dev` | Vite ready | 889 ms |
+| `docker compose up -d --build` | 3 container Up | Build immagini ~27 s, immagini cached |
+| `docker compose ps` | `db` healthy, `backend` e `frontend` Up | Porte 5432/8080/5173 |
+| `docker compose logs backend` | `Started TepoApplication in 3.498 seconds` | Flyway: schema v2 già applicato |
 
 ### Backend — riconciliazione per suite
 
@@ -152,7 +156,8 @@ confermato nuovamente dopo Fase C e Fase E.
 | `SolverEdgeCaseTest` | 8 | 8 | ✅ |
 | `SolverParityTest` | 4 | 4 | ✅ |
 | `SolverRandomizedParityTest` | 2 | 2 | ✅ |
-| **Totale** | **101** | **101** | ✅ |
+| `GreedyBaselineComparisonTest` | 3 | 3 | ✅ |
+| **Totale** | **104** | **104** | ✅ |
 
 Nessuna discrepanza.
 
@@ -243,6 +248,45 @@ preservare lo storico di `optimization_runs`) per vedere i nuovi valori.
 | 4.4 Confronto A vs B: differenze visibili | OK |
 | 4.5 Assistente AI: modalità locale, proposta, rifiuto | OK |
 
+### Deployment Docker Compose end-to-end
+
+Setup alternativo al percorso ibrido (db in Docker, backend e frontend locali).
+Verifica che l'intero stack funzioni con le immagini containerizzate.
+
+| Verifica | Esito |
+|---|---|
+| `docker compose up -d --build` | 3 container avviati |
+| `tepo-db` | `Up (healthy)` |
+| `tepo-backend` | `Up`, porte `0.0.0.0:8080->8080/tcp` |
+| `tepo-frontend` | `Up`, porte `0.0.0.0:5173->80/tcp` |
+| Log backend | `Started TepoApplication in 3.498 seconds` |
+| Flyway | `Successfully validated 2 migrations`, schema v2 |
+| `HikariPool` | connessione a `jdbc:postgresql://db:5432/tepo` |
+| `GET /api/buildings` | 10 |
+| `GET /api/interventions` | 26 |
+| `GET /api/scenarios/ping` | `status: ok` |
+| `GET http://localhost:5173` | HTTP 200 (nginx) |
+| Browser `http://localhost:5173` | Dashboard carica 10/26; flusso scenario → risultato funzionante |
+
+Il frontend containerizzato è servito da nginx, che fa da reverse proxy su
+`/api/` verso il container backend. La comunicazione tra i tre servizi avviene
+sulla rete Docker interna (`db:5432`, `backend:8080`).
+
+Nota tecnica: i timestamp del backend containerizzato sono in UTC
+(`08:24:49Z`), quelli del backend locale in CEST (`10:24:49+02:00`).
+Differenza attesa: il container non ha `TZ` settata. Non impatta il
+funzionamento.
+
+**Confronto con il percorso ibrido** (backend/frontend locali):
+
+| | Percorso ibrido | Docker Compose |
+|---|---|---|
+| Tempo di avvio backend | ~5.7 s | ~3.5 s |
+| Tempo di avvio frontend | Vite dev server (~0.9 s) | nginx statico (istantaneo) |
+| Hot-reload frontend | sì | no (build statico) |
+| Immagini containerizzate verificate | no | **sì** |
+| Rete db ↔ backend | localhost:5432 | rete Docker interna |
+
 ### Warning residui (invariati)
 
 - React Router v7 future flags.
@@ -253,14 +297,14 @@ preservare lo storico di `optimization_runs`) per vedere i nuovi valori.
 
 ### Limiti del collaudo
 
-- Test con provider LLM reale non eseguito (richiede credenziali).
+- Prova con provider LLM reale non eseguita.
 - Import CSV con file esterni non rieseguito in questa sessione.
 - Verifica tempi su 26 opzioni con timeout reali non misurata.
-- `docker compose up -d` completo (build immagini) non rieseguito: solo db.
 
 ### Prossime priorità
 
-- Prova con provider LLM reale (opzionale).
+- Prova con provider LLM reale (opzionale, richiede credenziali).
 - Eventuale `dataRevision` su entità per tracciare la versione del dataset (NFR-09).
 - Persistenza scenari A/B lato backend (superamento di P9).
 - Rimozione `version:` da `docker-compose.yaml` (warning cosmetico).
+- Baseline greedy vs solver: verificata (commit `3512621`, `GreedyBaselineComparisonTest`, 3 test).
