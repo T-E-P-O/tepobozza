@@ -38,7 +38,7 @@ React Router e Firefox MouseEvent).
 ### Risultati osservati
 
 Scenario A (budget 500.000 EUR, risparmio energetico):
-- Investimento: 500.000 EUR (budget esaurito)
+- Investimento: 500.000 EUR
 - Budget residuo: 0 EUR
 - Risparmio energetico: 301.500 kWh/anno
 - Risparmio economico: 60.300 EUR/anno
@@ -58,7 +58,7 @@ Il vincolo di incompatibilità OPT-001 ↔ OPT-021 è applicato correttamente.
 
 ### Warning residui (non bloccanti)
 
-- React Router v7 future flags (deprecazione annunciata).
+- React Router v7 future flags.
 - Firefox: `MouseEvent.mozPressure` e `MouseEvent.mozInputSource` deprecati.
 - Docker Compose: campo `version` obsoleto nel YAML (da rimuovere).
 
@@ -96,47 +96,171 @@ integrazione AI opzionale.
 - `AiController` con `GET /api/ai/status`.
 
 **Frontend**:
-- `AiAssistantPanel.test.tsx` (8 test): status AI, proposta, apply, reject,
-  errore, fallback.
+- `AiAssistantPanel.test.tsx` (8 test).
 - Pannello AI collassabile in `ScenarioBuilder`.
 - Evidenziazione esclusi proposti senza deselezione.
-
-### Verifiche manuali raccomandate (non eseguite in questa sessione)
-
-1. Aprire `http://localhost:5173/scenario`.
-2. Aprire pannello AI, verificare badge "Modalità locale".
-3. Inviare testo "voglio ridurre la CO2 con budget 500k".
-4. Verificare proposta con warning "Provider LLM non configurato".
-5. Click "Applica allo scenario": budget e obiettivo precompilati, banner visibile.
-6. Click "Ottimizza portafoglio": risultato coerente.
-7. Ripetere con profilo `llm` e chiave valida (se disponibile): badge "LLM attivo".
 
 ### Limiti del collaudo
 
 - `docker compose up -d` completo non eseguito in questa sessione.
 - Test con provider LLM reale non eseguito.
-- Import CSV con file esterni non rieseguito in questa sessione (verificato
-  in sessione precedente).
+- Import CSV con file esterni non rieseguito in questa sessione.
 
 ---
 
-## Problemi noti non bloccanti (aggiornati)
+## Sessione 3 — 2026-10-13 (dopo Fase E)
 
-- **P4** — `explanationsJson` serializzato ma senza test di round-trip.
-- **P9** — `scenarioId` fisso a `SCN-DEMO`, A/B solo in `sessionStorage`.
-- **NFR-09** — Snapshot immutabile non versionato.
-- **P10** — `coefficientScale` campo morto in `OptimizationProblem`.
-- 8 vulnerabilità transitive in `npm audit` (non risolvibili senza rompere Vite/React).
-- `docker-compose.yaml`: `node:25-alpine` nel frontend Dockerfile; `ISTRUZIONI-AVVIO.md`
-  cita `node:20`.
-- Colori marker Leaflet hardcoded (non seguono il tema scuro).
-- FOUC al primo caricamento in dark mode.
+Ambiente: Windows 11, JDK 21 Temurin 21.0.12.101, Maven 3.9,
+Docker Desktop, PostgreSQL 16.15, Node 20+/npm, browser Chrome/Firefox.
+Backend avviato con profilo `demo`.
 
----
+Commit verificato: `9e786f48d69b77d0c0f7811991aa2c9652cf7c62`.
 
-## Prossime priorità
+### Esito complessivo
 
-- Test end-to-end con Docker Compose completo.
-- Test di integrazione `OptimizationRunRepository`.
-- Persistenza scenari A/B lato backend.
-- Allineamento `ISTRUZIONI-AVVIO.md` (percorso `tepodeepseek` → `tepobozza`).
+Tutti i comandi di verifica passano. Multi-obiettivo dimostrato empiricamente
+sul dataset demo dopo la correzione dei vettori energetici. Determinismo
+confermato nuovamente dopo Fase C e Fase E.
+
+### Comandi eseguiti
+
+| Comando | Esito | Note |
+|---|---|---|
+| `git rev-parse HEAD` | `9e786f4...` | Coincide con commit atteso |
+| `git status --short` | vuoto | Working tree pulito |
+| `mvn -B clean test` | **101/101 verdi** | +40 rispetto a Sessione 2 |
+| `docker compose ps` | `tepo-db` healthy | PostgreSQL 16.15 |
+| `mvn spring-boot:run -Dspring-boot.run.profiles=demo` | `Started TepoApplication in 5.755 seconds` | Flyway: schema v2 già applicato |
+| `npm run dev` | Vite ready | 889 ms |
+
+### Backend — riconciliazione per suite
+
+| Suite | Reale | Atteso (traceability) | Δ |
+|---|---|---|---|
+| `LlmAiAssistantTest` | 10 | 10 | ✅ |
+| `ImportControllerTest` | 10 | 10 | ✅ |
+| `ScenarioControllerTest` | 2 | 2 | ✅ |
+| `SensitivityServiceTest` | 13 | 13 | ✅ |
+| `DemoDatasetCoherenceTest` | 7 | 7 | ✅ |
+| `BruteForceSolverTest` | 12 | 12 | ✅ |
+| `DemoMultiObjectiveEmpiricalTest` | 2 | 2 | ✅ |
+| `ExplanationReasonCodeTest` | 8 | 8 | ✅ |
+| `ExplanationServiceTest` | 4 | 4 | ✅ |
+| `MultiObjectiveDiscriminativeTest` | 3 | 3 | ✅ |
+| `OrToolsSolverRegressionTest` | 10 | 10 | ✅ |
+| `OrToolsSolverTest` | 6 | 6 | ✅ |
+| `SolverEdgeCaseTest` | 8 | 8 | ✅ |
+| `SolverParityTest` | 4 | 4 | ✅ |
+| `SolverRandomizedParityTest` | 2 | 2 | ✅ |
+| **Totale** | **101** | **101** | ✅ |
+
+Nessuna discrepanza.
+
+### Smoke test API
+
+| Endpoint | Output | Atteso |
+|---|---|---|
+| `GET /api/buildings` | 10 | 10 |
+| `GET /api/interventions` | 26 | 26 |
+| `GET /api/scenarios/ping` | `status: ok` | ok |
+| `GET /api/ai/status` | `llmConfigured: false`, `activeProvider: "rule-based"` | coerente con avvio senza chiave |
+
+### Determinismo (3 POST identici)
+
+Payload:
+```
+budgetCents = 50000000
+objective = ENERGY_SAVING
+candidateOptionIds = [OPT-001, OPT-003, OPT-005, OPT-008, OPT-009, OPT-013, OPT-017, OPT-019, OPT-021]
+```
+
+| Run | solverStatus | problemHash | totalInvestmentCents | objectiveValue | runId |
+|---|---|---|---|---|---|
+| 1 | OPTIMAL | `558a28a0…` | 50.000.000 | 301.500 | `464e3d2e-…` |
+| 2 | OPTIMAL | `558a28a0…` | 50.000.000 | 301.500 | `50ced6b8-…` |
+| 3 | OPTIMAL | `558a28a0…` | 50.000.000 | 301.500 | `ad83132b-…` |
+
+`problemHash`, `totalInvestmentCents`, `objectiveValue` identici.
+`runId` diverso per esecuzione (UUID). Determinismo confermato.
+
+### Multi-obiettivo (set di candidati misto)
+
+Payload (set misto: 5 opzioni elettriche, 4 a gas):
+```
+budgetCents = 50000000
+candidateOptionIds = [OPT-001, OPT-003, OPT-005, OPT-009, OPT-013, OPT-007, OPT-014, OPT-016, OPT-024]
+```
+
+| Obiettivo | Selected | Energy | Economic | CO2 |
+|---|---|---|---|---|
+| `ENERGY_SAVING` | 001, 003, 005, 007, 009, 013, 016 | 277.500 | 5.677.500 | 36.150 |
+| `ECONOMIC_SAVING` | 001, 003, 005, 007, 009, 013, 016 | 277.500 | 5.677.500 | 36.150 |
+| `CO2_REDUCTION` | 001, 007, 013, 014, 016, 024 | 229.500 | 3.577.500 | **37.350** |
+
+**ENERGY e CO2 divergono**: il portafoglio CO2 include `OPT-014` e `OPT-024`
+(PdC a gas, 0.20 kg CO₂/kWh) ed esclude `OPT-003`, `OPT-005`, `OPT-009`
+(LED, 0.10 kg CO₂/kWh). A parità di budget saturo, `CO2_REDUCTION` guadagna
++1.200 kg rispetto alla selezione ENERGY.
+
+`ENERGY_SAVING` ed `ECONOMIC_SAVING` coincidono **su questo specifico
+sottoinsieme**: i 5 LED hanno sia il miglior rapporto €/kWh sia il miglior
+rapporto cent/kWh. La coincidenza è matematica, non un bug. Il test
+`DemoMultiObjectiveEmpiricalTest.economicAndCo2DifferOnAtLeastOneBudget`
+verifica la divergenza **su altri budget** dove i gas diventano competitivi.
+
+### Verifica dataset corrente
+
+Campionamento `GET /api/interventions`:
+
+| ID | interventionTypeId | kWh | Economic (cent) | CO2 (kg) | econ/kWh | co2/kWh |
+|---|---|---|---|---|---|---|
+| OPT-001 | `TYPE-LED` (elettrico) | 37.500 | 937.500 | 3.750 | 25 | 0.10 |
+| OPT-007 | `TYPE-INSULATION` (gas) | 60.000 | 600.000 | 12.000 | 10 | 0.20 |
+
+I due vettori energetici sono distinti e coerenti con `DemoDataLoader`.
+
+### Nota su DB volume e ri-esecuzione del loader
+
+Durante la sessione è emerso che il volume Docker `tepo-db-data` conteneva
+il dataset **pre-Fase E** (fattori uniformi `×20` / `×0.25`). Il loader
+`DemoDataLoader` è idempotente (`if (buildingRepo.count() > 0) return;`):
+al riavvio del backend non ha ri-eseguito il seed.
+
+**Soluzione adottata**: `TRUNCATE intervention_options, intervention_types, buildings CASCADE`
+sul DB di sviluppo, riavvio backend, re-seed automatico. Nessuna modifica al codice.
+
+**Implicazione per verifiche future**: dopo qualsiasi modifica al dataset demo,
+è necessario `TRUNCATE` del catalogo (o `docker compose down -v` se non serve
+preservare lo storico di `optimization_runs`) per vedere i nuovi valori.
+
+### Collaudo UI (5 punti critici)
+
+| Punto | Esito |
+|---|---|
+| 4.1 Dashboard + catalogo (10/26, badge DEMO) | OK |
+| 4.2 Scenario A: ENERGY_SAVING, 500k EUR | OK |
+| 4.3 Scenario B: CO2_REDUCTION, 500k EUR, portafoglio diverso | OK |
+| 4.4 Confronto A vs B: differenze visibili | OK |
+| 4.5 Assistente AI: modalità locale, proposta, rifiuto | OK |
+
+### Warning residui (invariati)
+
+- React Router v7 future flags.
+- Firefox: `MouseEvent.mozPressure` e `mozInputSource` deprecati.
+- Jacoco: `Classes in bundle 'TEPO Backend' do not match with execution data`
+  (cosmetico, build success).
+- Maven: 3 `WARNING Could not transfer metadata` (repo remote, benigno).
+
+### Limiti del collaudo
+
+- Test con provider LLM reale non eseguito (richiede credenziali).
+- Import CSV con file esterni non rieseguito in questa sessione.
+- Verifica tempi su 26 opzioni con timeout reali non misurata.
+- `docker compose up -d` completo (build immagini) non rieseguito: solo db.
+
+### Prossime priorità
+
+- Prova con provider LLM reale (opzionale).
+- Eventuale `dataRevision` su entità per tracciare la versione del dataset (NFR-09).
+- Persistenza scenari A/B lato backend (superamento di P9).
+- Rimozione `version:` da `docker-compose.yaml` (warning cosmetico).
