@@ -17,7 +17,7 @@ Legenda evidenza:
 | FR-05 Creare scenari | `ScenarioBuilder`, `sessionStorage` | MANUALE | Collaudo |
 | FR-06 Definire budget | `BudgetConstraint`, `ScenarioBuilder` | TEST | `BruteForceSolverTest` |
 | FR-07 Scegliere obiettivo | `Objective`, `ScenarioBuilder` | TEST | `MultiObjectiveDiscriminativeTest`, `DemoMultiObjectiveEmpiricalTest` |
-| FR-08 Ottimizzare | `OptimizationService`, `OrToolsSolver` | TEST | Suite solver |
+| FR-08 Ottimizzare | `OptimizationService`, `OrToolsSolver` | TEST | Suite solver, `GreedyBaselineComparisonTest` |
 | FR-09 Mostrare piano | `ResultPage` | MANUALE | Collaudo |
 | FR-10 Mostrare metriche | `OptimizationResult` | TEST | Suite solver |
 | FR-11 Spiegare | `ExplanationService` | TEST | `ExplanationServiceTest`, `ExplanationReasonCodeTest` |
@@ -30,16 +30,17 @@ Legenda evidenza:
 | FR-18 AI opzionale | `AiAssistant`, `LlmAiAssistant`, `AiAssistantPanel` | TEST | `LlmAiAssistantTest`, `AiAssistantPanel.test.tsx` |
 | FR-19 Multi-obiettivo distinto | `DemoDataLoader` (vettori), `OrToolsSolver` | TEST | `DemoDatasetCoherenceTest`, `MultiObjectiveDiscriminativeTest`, `DemoMultiObjectiveEmpiricalTest` |
 | FR-20 Analisi sensibilità budget | `SensitivityService`, `SensitivityController`, `SensitivityPage` | TEST | `SensitivityServiceTest` (13 test), `SensitivityPage.test.tsx` (4 test) |
+| FR-21 Vantaggio dell'ottimizzatore | `OrToolsSolver` vs baseline greedy | TEST | `GreedyBaselineComparisonTest` (3 test) |
 
 ## Requisiti non funzionali
 
 | NFR | Verifica | Evidenza |
 |---|---|---|
 | NFR-01 Usabilità | Utente crea e confronta due scenari | MANUALE |
-| NFR-02 Isolamento | Test solver senza Spring/DB | TEST (`OrToolsSolverTest`, `SolverEdgeCaseTest`) |
+| NFR-02 Isolamento | Test solver senza Spring/DB | TEST (`OrToolsSolverTest`, `SolverEdgeCaseTest`, `GreedyBaselineComparisonTest`) |
 | NFR-03 Riproducibilità | Run identici → selezione identica | TEST (`OrToolsSolverRegressionTest`, `SolverRandomizedParityTest`) |
 | NFR-04 Interpretabilità | Spiegazioni citano vincoli reali | TEST (`ExplanationServiceTest`, `ExplanationReasonCodeTest`) |
-| NFR-05 Sostituibilità | Adapter solver intercambiabili | TEST (`SolverParityTest`, `SolverRandomizedParityTest`) |
+| NFR-05 Sostituibilità | Adapter solver intercambiabili | TEST (`SolverParityTest`, `SolverRandomizedParityTest`, `GreedyBaselineComparisonTest`) |
 | NFR-06 Tracciabilità | FR → componente → test | Questa matrice |
 | NFR-07 Trasparenza | Natura sintetica visibile | TEST (`DemoDatasetCoherenceTest`) + MANUALE |
 | NFR-08 Prestazioni | Run 26 opzioni < 5s | MANUALE |
@@ -56,6 +57,7 @@ Legenda evidenza:
 | `SolverParityTest` | 4 | Parità OrTools vs BruteForce (istanze fisse) |
 | `SolverEdgeCaseTest` | 8 | Prerequisiti non-candidati, hash canonico, IncludeConstraint |
 | `SolverRandomizedParityTest` | 2 | 50 seed × 3 obiettivi = 150 confronti esaustivi + 150 verifiche di auto-consistenza |
+| `GreedyBaselineComparisonTest` | 3 | Solver vs greedy: mai peggiore (150 confronti), strettamente migliore (≥1), controesempio knapsack (gap 60%) |
 | `MultiObjectiveDiscriminativeTest` | 3 | Obiettivi matematicamente distinti (istanze costruite) |
 | `DemoMultiObjectiveEmpiricalTest` | 2 | Obiettivi distinti sul dataset demo reale |
 | `DemoDatasetCoherenceTest` | 7 | Coerenza dataset per vettore + non-proporzionalità |
@@ -66,7 +68,7 @@ Legenda evidenza:
 | `LlmAiAssistantTest` | 10 | Provider LLM fake, fallback, validazione |
 | `ScenarioControllerTest` | 2 | `@WebMvcTest` |
 
-**Totale backend**: 101.
+**Totale backend**: 104.
 
 ## Copertura per famiglia di test — frontend
 
@@ -82,6 +84,6 @@ Legenda evidenza:
 
 ## Riepilogo
 
-- **TEST**: 20 FR/NFR con copertura automatica (101 + 19 test verdi).
-- **MANUALE**: collaudo in `docs/collaudo.md`.
+- **TEST**: 21 FR/NFR con copertura automatica (104 + 19 test verdi).
+- **MANUALE**: collaudo in `docs/collaudo.md` (Sessioni 1, 2, 3).
 - **PARZIALE**: FR-16 (round-trip JSON), NFR-09 (snapshot versionato).
