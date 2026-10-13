@@ -1,83 +1,86 @@
-# TEPO — Checkpoint verifica finale
+# TEPO — Checkpoint di progetto
 
-Data: 2026-10-10
-Ambiente: <SO, versioni di Docker, Java, Maven, Node>
+**Data:** 2026-10-13  
+**Repository:** `mirconegri/tepobozza`  
+**Branch:** `main`  
+**Commit di riferimento:** `8340157` — `test(optimization): baseline greedy vs solver ottimo`  
+**Stato dichiarato:** commit presente su `origin/main`, working tree pulito.
 
-## 1. Stato Git
+> Questo checkpoint riassume lo stato riportato al termine della sessione del 13 ottobre 2026. I risultati sono una registrazione delle verifiche effettuate nella sessione, non una nuova esecuzione indipendente.
 
-- Output `git status`: <incollare>
-- Modifiche preesistenti preservate: sì / no
-- Azioni distruttive eseguite: nessuna
+## Stato generale
 
-## 2. Build frontend (`npm run build`)
+Il prototipo TEPO è in uno stato utilizzabile per la demo accademica. La baseline automatizzata, il determinismo dell'ottimizzazione, il percorso UI principale e il deployment Docker Compose completo sono stati riportati come superati. Il dataset è dimostrativo: non presentare i risultati numerici come misure o decisioni reali del Comune di Trento.
 
-- Comando: `cd frontend && npm run build`
-- Esito: success / failure
-- Errori TypeScript: <nessuno / elenco>
-- Output `dist/`: <file prodotti>
-- Anomalie: <elenco o "nessuna">
+## Baseline automatizzata
 
-## 3. Docker build e up
+| Componente | Risultato riportato |
+|---|---:|
+| Backend | 104/104 test verdi |
+| Frontend | 19/19 test verdi |
+| Repository | Working tree pulito; commit pushato su `origin/main` |
 
-- Comando: `docker compose build && docker compose up -d`
-- Esito: success / failure
-- Container avviati: <elenco>
-- Volumi cancellati: nessuno
-- Anomalie: <elenco o "nessuna">
+La suite backend include, tra gli altri, test di parità randomizzata solver/oracolo esaustivo, discriminazione multi-obiettivo, reason code delle spiegazioni, sensibilità al budget, import CSV e confronto fra solver e baseline greedy.
 
-## 4. Stato container e raggiungibilità
+## Collaudo dello stack e del flusso principale
 
-- `docker compose ps`: <incollare>
-- Log backend (ultime 20 righe): <incollare>
-- Log frontend (ultime 20 righe): <incollare>
-- `GET /api/buildings`: <count>
-- `GET /api/interventions`: <count>
-- `GET /api/scenarios/ping`: <risposta>
-- `GET /v3/api-docs`: <title>
-- Ottimizzazione POST: solverStatus=<...>, optimalityProven=<...>, canonicalTieBreakCompleted=<...>, selected=<...>
-- Persistenza dopo restart backend: `/api/runs` count=<...>
+Sono stati riportati i seguenti esiti:
 
-## 5. Import CSV
+- Database Docker in stato `healthy`, backend avviato e frontend Vite pronto nel setup ibrido.
+- Migrazioni Flyway validate, schema alla versione 2.
+- Endpoint di smoke test: 10 edifici, 26 interventi, ping scenario `ok` e stato AI coerente con il provider `rule-based`.
+- Deployment Docker Compose completo: tre container avviati (`db`, `backend`, frontend `nginx`) ed endpoint verificati tramite la rete Docker interna.
+- Percorso UI principale verificato: dashboard/catalogo, Scenario A con `ENERGY_SAVING`, Scenario B con `CO2_REDUCTION`, confronto fra risultati e assistente AI in modalità locale con proposta e rifiuto.
 
-- `test-valid.csv`: valid=<...>, invalid=<...>, inserted=<...>
-- `test-malformed.csv`: valid=<...>, invalid=<...>, errori=<elenco>
-- `test-with-bom.csv`: valid=<...>, invalid=<...>
-- `test-empty.csv`: HTTP status=<...>, messaggio=<...>
-- `test-no-header.csv`: HTTP status=<...>, messaggio=<...>
-- Pulizia record di test: eseguita / non eseguita
+La prova con un provider LLM reale non è stata eseguita.
 
-## 6. Matrice requisiti
+## Determinismo e obiettivi
 
-- Punto 38 (responsive): stato riconciliato = VERIFICATO
-- Punto 53 (OpenAPI): stato riconciliato = VERIFICATO (dipende dal passo 4)
-- Conteggio originale dei 91 punti: invariato
-- Deliverable verificati: <N>
-- Deliverable non verificati: <N>
-- Deliverable parziali: <N>
-- Future work: <N>
+Tre richieste identiche a `POST /api/scenarios/SCN-DEMO/optimize` hanno restituito:
 
-## 7. `docs/data-readiness.md`
+- `solverStatus`: `OPTIMAL` per tutte le esecuzioni;
+- `problemHash`: identico (`558a28a0…`);
+- `totalInvestmentCents`: identico (`50.000.000`);
+- `objectiveValue`: identico (`301.500`);
+- `runId`: diverso per ogni esecuzione, come atteso per un identificativo di run.
 
-- Creato / aggiornato
-- Sezioni: 8
-- Contenuto verificato: sì
+Nel test con un set misto di cinque opzioni elettriche e quattro a gas, con budget di 500.000 euro, `CO2_REDUCTION` ha prodotto un portafoglio diverso da `ENERGY_SAVING`. `ENERGY_SAVING` ed `ECONOMIC_SAVING` hanno coinciso su quel sottoinsieme specifico; la divergenza fra obiettivi è verificata anche da test su ulteriori budget. Non dedurre che ogni coppia di obiettivi debba produrre sempre portafogli diversi su qualsiasi insieme di candidati.
 
-## 8. Integrazioni AI/ML/scraping
+## Confronto solver–greedy
 
-- LLM attivo: no
-- ML attivo: no
-- Scraping attivo: no
+`GreedyBaselineComparisonTest` riporta tre test verdi:
 
-## 9. Verifiche non eseguite
+1. il solver non è peggiore del greedy nelle 150 istanze randomizzate considerate (50 seed per tre obiettivi);
+2. almeno un'istanza randomizzata in cui il solver supera il greedy;
+3. un controesempio classico di knapsack in cui l'ottimo vale 16 e il greedy 10.
 
-<elenco con motivazione>
+Questi risultati mostrano un vantaggio misurabile in almeno alcuni casi e la correttezza empirica sui campioni testati. Non quantificano ancora il gap medio o la distribuzione dei vantaggi su istanze specifiche del dominio TEPO.
 
-## 10. Anomalie riscontrate
+## Documentazione
 
-<elenco con passi di riproduzione>
+Risultano aggiornati, secondo il resoconto della sessione:
 
-## 11. Conclusione
+- `docs/collaudo.md` — sessione di collaudo del 13 ottobre;
+- `docs/demo.md` — script demo in 11 passaggi con risultati osservati;
+- `docs/traceability.md` — requisiti e tracciabilità;
+- `docs/testing.md` — strategia e limiti dei test;
+- `docs/audit-report.md` — risultati della Fase E, bug e criticità aperte;
+- `docs/optimization.md` — formulazione, spiegazioni, hash e sensibilità;
+- `docs/api.md` e `README.md` — API, stack e baseline aggiornati.
 
-Stato: <pronto per consegna / da rivedere>
+## Limiti e attività non completate
 
-Prossima azione: <una sola>
+- Prova end-to-end con un provider LLM reale: non eseguita, richiede credenziali.
+- Import CSV su file esterni reali: non rieseguito nella sessione.
+- Misurazione dei tempi su 26 opzioni con timeout effettivi: non eseguita.
+- Validazione con `@Valid`/DTO dedicati per `BuildingController` e `InterventionController`: gap residuo segnalato, da valutare prima di esporre API di scrittura oltre il contesto demo.
+- Il gap medio solver–greedy su istanze rappresentative TEPO non è stato misurato.
+
+I dati e i risultati dimostrativi non devono essere descritti come dati energetici certificati o come portfolio di interventi approvato dal Comune. Ogni evoluzione basata su dati reali richiede la disponibilità, la provenienza e la validazione del dataset pertinente.
+
+## Indicazione per la prossima sessione
+
+1. Non modificare solver o dipendenze senza un finding riproducibile o una misura che giustifichi l'intervento.
+2. Se la consegna imminente è accademica, congelare la baseline corrente e preparare slide, relazione e script di demo usando esclusivamente numeri già osservati e dichiarando le assunzioni del dataset.
+3. Trattare LLM reale, import su file esterni e benchmark temporali come attività opzionali o successive, salvo requisiti espliciti della consegna.
+4. Prima di qualsiasi ulteriore fix, riconciliare il problema con gli ID e lo stato presenti in `docs/audit-report.md`.
