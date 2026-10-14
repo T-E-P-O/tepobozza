@@ -1,0 +1,49 @@
+\section{Traceability}
+
+La matrice di tracciabilità verifica i collegamenti tra i requisiti funzionali e non funzionali del D1 e gli artefatti che li dettagliano (Use Case, User Story, Acceptance Criteria, Mockup). Ogni RF deve essere collegato ad almeno un artefatto; gli RNF sono tracciati verso gli artefatti pertinenti (mockup, user flow o, quando non applicabile, verso la sezione di motivazione).
+
+\begin{longtable}{p{1.2cm} p{2.2cm} p{2.2cm} p{3.4cm} p{2.6cm} p{4cm}}
+\caption{Matrice di tracciabilità di TEPO.}\\
+\toprule
+\textbf{RF/RNF} & \textbf{Use Case} & \textbf{User Story} & \textbf{Acceptance Criteria} & \textbf{Mockup} & \textbf{Note} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{RF/RNF} & \textbf{Use Case} & \textbf{User Story} & \textbf{Acceptance Criteria} & \textbf{Mockup} & \textbf{Note} \\
+\midrule
+\endhead
+
+RF-01 & UC-01 & US-01 & AC-US01-01/02/03 & MU-Fig.3 & Catalogo edifici. \\
+RF-02 & UC-13 & US-02 & AC-US02-01/02 & MU-Fig.2 & Vista cartografica. \\
+RF-03 & UC-02 & US-03 & AC-US03-01 & MU-Fig.4 & Catalogo interventi. \\
+RF-04 & UC-02 & US-03 & AC-US03-02/03 & MU-Fig.4 & Ricerca e filtro interventi. \\
+RF-05 & UC-11 & US-04 & AC-US04-01/02/03 & MU-Fig.9 & Import CSV in due fasi. \\
+RF-06 & UC-03 & US-05 & AC-US05-01/02/03 & MU-Fig.5 & Configurazione scenario. \\
+RF-07 & UC-04 & US-06 & AC-US06-01/02/03 & MU-Fig.5 & Vincoli dello scenario. \\
+RF-08 & UC-03 & US-05 & AC-US05-03 & MU-Fig.5 & Selezione candidati. \\
+RF-09 & UC-05 & US-07 & AC-US07-01/02/03 & MU-Fig.6 & Ottimizzazione. \\
+RF-10 & UC-06 & US-07 & AC-US07-01 & MU-Fig.6 & Visualizzazione risultati. \\
+RF-11 & UC-06 & US-08 & AC-US08-01/02/03 & MU-Fig.6 & Spiegazioni deterministiche. \\
+RF-12 & UC-12 & Da definire & Da definire & Da definire & Audit: consultazione storica, priorità media. \\
+RF-13 & UC-07 & US-09 & AC-US09-01/02 & MU-Fig.7 & Salvataggio A/B. \\
+RF-14 & UC-07 & US-10 & AC-US10-01/02 & MU-Fig.7 & Confronto scenari. \\
+RF-15 & UC-08 & US-11 & AC-US11-01/02 & MU-Fig.8 & Sensibilità sul budget. \\
+RF-16 & UC-09 & US-12 & AC-US12-01/02 & MU-Fig.5 & Proposta AI opzionale. \\
+RF-17 & UC-09, UC-10 & US-13 & AC-US13-01/02/03 & MU-Fig.5 & Approvazione umana. \\
+RF-18 & --- & US-14 & AC-US14-01/02 & MU-Fig.1 & Cambio tema. \\
+\midrule
+RNF-01 & --- & --- & --- & --- & Sezione 3, motivazione RNF-01. \\
+RNF-02 & UC-05 & US-07 & AC-US07-02 & --- & Determinismo solver. \\
+RNF-03 & UC-12 & Da definire & Da definire & --- & Audit. \\
+RNF-04 & UC-06 & US-08 & AC-US08-01/02/03 & MU-Fig.6 & Interpretabilità. \\
+RNF-05 & UC-05 & US-07 & AC-US07-03 & --- & Prestazioni. \\
+RNF-06 & --- & --- & --- & --- & Compatibilità browser. \\
+RNF-07 & --- & --- & --- & MU-Fig.1..9 & Accessibilità WCAG 2.1 AA. \\
+RNF-08 & --- & --- & --- & --- & Manutenibilità / OpenAPI. \\
+RNF-09 & UC-09, UC-10 & US-12, US-13 & AC-US12-01/02, AC-US13-01/02/03 & MU-Fig.5 & AI opzionale e confinata. \\
+RNF-10 & UC-12 & Da definire & Da definire & --- & Snapshot immutabile. \\
+
+\bottomrule
+\end{longtable}
+
+\textbf{Note:} gli elementi RF-12, RNF-03 e RNF-10 sono esplicitamente a priorità media e sono documentati in questa sede ma non ancora collegati a uno user flow dedicato. Saranno oggetto di aggiornamento dopo la baseline.

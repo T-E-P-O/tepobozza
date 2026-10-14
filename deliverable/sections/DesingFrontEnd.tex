@@ -1,0 +1,130 @@
+\section{Design Front-end}
+
+\textbf{Premessa:} in questa sezione vengono riportati dei mockup del frontend dell'applicazione, ossia prototipi di quella che sarà l'interfaccia utente di \textbf{TEPO}. L'effettiva realizzazione del frontend può riportare leggere differenze e maggiori dettagli rispetto agli esempi proposti.
+
+Tutti i mockup rispecchiano il requisito non funzionale di \textbf{Usabilità} e adottano un insieme coerente di token di design (colori, spaziature, tipografia, stati di focus). L'utilizzo del sistema risulta intuitivo perché ogni azione è compiuta premendo pulsanti con indicazioni esplicite sulla loro funzionalità. È disponibile anche un tema scuro, selezionabile dall'utente.
+
+\subsection{Header e navigazione}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{img/Header.png}
+    \caption{Header di TEPO -- barra di navigazione principale}
+    \label{fig:header}
+\end{figure}
+
+Nella Figura \ref{fig:header} è riportato un mockup dell'header delle varie pagine dell'applicazione. L'header espone le sezioni principali: \emph{Dashboard}, \emph{Mappa}, \emph{Edifici}, \emph{Interventi}, \emph{Scenario}, \emph{Confronto}, \emph{Importazione}, \emph{Sensibilità}. In alto a destra è presente l'interruttore per il cambio tema (chiaro/scuro) e un badge che segnala in modo permanente che i dati mostrati sono ``DEMO -- dati sintetici''.
+
+% IMMAGINE: img/Header.png -- Header di TEPO con navigazione principale e badge "DEMO - dati sintetici"
+
+\subsection{Dashboard}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{img/SchermataDashboard.png}
+    \caption{Dashboard di TEPO}
+    \label{fig:dashboard}
+\end{figure}
+
+Nella Figura \ref{fig:dashboard} è riportato un mockup della dashboard iniziale. Mostra i KPI sintetici del catalogo (numero edifici, numero interventi, tipologie rappresentate) e le azioni rapide verso la costruzione dello scenario. Ogni indicatore è accompagnato dall'unità di misura. La schermata è collegata ai seguenti requisiti:
+\begin{itemize}
+    \item \textbf{RF\ref{rf:catalogo_edifici}:} consultazione sintetica del catalogo edifici.
+    \item \textbf{RF\ref{rf:catalogo_interventi}:} consultazione sintetica del catalogo interventi.
+    \item \textbf{RF\ref{rf:config_scenario}:} accesso rapido alla configurazione di uno scenario.
+\end{itemize}
+
+Collegamenti principali: RF\ref{rf:catalogo_edifici}, RF\ref{rf:catalogo_interventi}, RF\ref{rf:config_scenario}; UC-01, UC-02, UC-03; US-01, US-03, US-05.
+
+\subsection{Mappa degli edifici}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{img/SchermataMappa.png}
+    \caption{Vista cartografica degli edifici}
+    \label{fig:mappa}
+\end{figure}
+
+Nella Figura \ref{fig:mappa} è riportato un mockup della vista cartografica: sulla sinistra la mappa con i marker degli edifici; sulla destra la legenda e la tabella compatta degli edifici con stato corrente rispetto a uno scenario. I colori dei marker distinguono edifici con interventi selezionati, esclusi, non valutati.
+
+Collegamenti principali: RF\ref{rf:mappa}; UC-13; US-02.
+
+\subsection{Catalogo degli edifici}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{img/SchermataEdifici.png}
+    \caption{Catalogo degli edifici}
+    \label{fig:edifici}
+\end{figure}
+
+Nella Figura \ref{fig:edifici} è riportato un mockup del catalogo edifici, con filtro per tipologia, ricerca testuale e ordinamento per colonna. La tabella mostra identificativo, denominazione, indirizzo, tipologia, superficie, numero di interventi e provenienza del dato.
+
+Collegamenti principali: RF\ref{rf:catalogo_edifici}; UC-01; US-01.
+
+\subsection{Catalogo degli interventi}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{img/SchermataInterventi.png}
+    \caption{Catalogo degli interventi}
+    \label{fig:interventi}
+\end{figure}
+
+Nella Figura \ref{fig:interventi} è riportato un mockup del catalogo interventi con filtri combinabili: ricerca testuale, edificio di riferimento, tipologia, intervallo di costo, stato di valutazione nello scenario corrente. Ogni riga riporta costo, risparmio energetico, risparmio economico, CO\textsubscript{2} e payback semplice.
+
+Collegamenti principali: RF\ref{rf:catalogo_interventi}, RF\ref{rf:filtri_interventi}; UC-02; US-03.
+
+\subsection{Scenario Builder}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{img/SchermataScenario.png}
+    \caption{Scenario Builder -- configurazione dello scenario}
+    \label{fig:scenario}
+\end{figure}
+
+Nella Figura \ref{fig:scenario} è riportato un mockup dello \emph{Scenario Builder}. La schermata espone: (i) i campi per budget e obiettivo; (ii) la tabella delle opzioni candidate con possibilità di toggle e selezione rapida; (iii) la sezione dei vincoli applicati (incompatibilità, prerequisiti, numero massimo, inclusione/esclusione); (iv) un pannello di assistenza AI collassabile; (v) il pulsante di esecuzione dell'ottimizzazione.
+
+Collegamenti principali: RF\ref{rf:config_scenario}, RF\ref{rf:candidati}, RF\ref{rf:vincoli_scenario}, RF\ref{rf:ai_proposta}, RF\ref{rf:ai_approvazione}; UC-03, UC-04, UC-09; US-05, US-06, US-12, US-13.
+
+\subsection{Risultati e spiegazioni}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{img/SchermataRisultati.png}
+    \caption{Pagina dei risultati dell'ottimizzazione}
+    \label{fig:risultati}
+\end{figure}
+
+Nella Figura \ref{fig:risultati} è riportato un mockup della pagina dei risultati: uno stato del solver ben visibile (badge \emph{OPTIMAL} o altro stato), KPI aggregati (investimento totale, risparmio energetico, risparmio economico, CO\textsubscript{2}, numero di interventi selezionati), tabella degli interventi selezionati e sezione ``Perché questa soluzione?'' con le spiegazioni per ciascuna opzione candidata.
+
+Collegamenti principali: RF\ref{rf:risultati}, RF\ref{rf:spiegazioni}; UC-05, UC-06; US-07, US-08.
+
+\subsection{Confronto tra scenari A/B}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{img/SchermataConfronto.png}
+    \caption{Pagina di confronto tra due scenari}
+    \label{fig:confronto}
+\end{figure}
+
+Nella Figura \ref{fig:confronto} è riportato un mockup della pagina di confronto: quattro KPI \emph{delta} (Δ investimento, Δ energia, Δ economia, Δ numero di interventi) e una tabella comparativa con i parametri e gli indicatori dei due scenari. I badge nei header delle sezioni di differenza evidenziano gli interventi aggiunti (verde) o rimossi (arancio) passando da A a B.
+
+Collegamenti principali: RF\ref{rf:scenari_salvati}, RF\ref{rf:confronto}; UC-07; US-09, US-10.
+
+\subsection{Analisi di sensibilità sul budget}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{img/SchermataSensibilita.png}
+    \caption{Analisi di sensibilità sul budget}
+    \label{fig:sensibilita}
+\end{figure}
+
+Nella Figura \ref{fig:sensibilita} è riportato un mockup dell'analisi di sensibilità. Sono visibili: il form di avvio (budget minimo, massimo, numero di punti), i KPI sintetici dell'analisi, una tabella con barra proporzionale della frequenza di selezione per ciascuna opzione e tre sezioni dedicate a ``Sempre selezionate'', ``Mai selezionate'' e ``Swing''.
+
+Collegamenti principali: RF\ref{rf:sensibilita}; UC-08; US-11.
+
+\subsection{Importazione dati da CSV}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{img/SchermataImport.png}
+    \caption{Pagina di importazione dati da CSV}
+    \label{fig:import}
+\end{figure}
+
+Nella Figura \ref{fig:import} è riportato un mockup della pagina di importazione: descrizione dell'header atteso, pulsante ``Carica esempio'', textarea in monospace per il contenuto CSV, badge con conteggio righe valide e invalide, e pulsante di conferma importazione.
+
+Collegamenti principali: RF\ref{rf:import_csv}; UC-11; US-04.

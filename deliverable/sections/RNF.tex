@@ -1,0 +1,51 @@
+\section{Requisiti Non Funzionali}
+
+\RNF{Isolamento del dominio applicativo.} \label{rnf:isolamento}
+Il sistema deve mantenere una separazione netta tra i seguenti livelli: (i) dati di catalogo, (ii) parametri di scenario, (iii) vincoli formali, (iv) motore di ottimizzazione, (v) generazione di spiegazioni, (vi) componente di assistenza AI, (vii) decisione finale dell'utente. Nessun livello deve poter modificare direttamente lo stato dei livelli che non gli competono.
+
+\textbf{Motivazione:} la separazione è un vincolo di dominio del progetto ed è funzionale alla verificabilità del risultato: consente di auditare separatamente dati, calcolo e spiegazioni, e impedisce che la componente AI possa influenzare il risultato matematico.
+
+\RNF{Determinismo e riproducibilità dell'ottimizzazione.} \label{rnf:determinismo}
+A parità di parametri di scenario (budget, obiettivo, insieme dei candidati, vincoli, configurazione dei timeout), l'ottimizzazione deve produrre lo stesso portafoglio e gli stessi indicatori aggregati, indipendentemente dall'ordine di presentazione dei candidati. Il sistema deve associare a ogni problema di ottimizzazione un \emph{hash canonico} indipendente dall'ordine degli input.
+
+\textbf{Motivazione:} la riproducibilità è condizione necessaria perché un risultato possa essere discusso in sede decisionale e perché eventuali anomalie possano essere riprodotte e diagnosticate.
+
+\RNF{Prestazioni dell'ottimizzazione.} \label{rnf:prestazioni}
+L'ottimizzazione di uno scenario contenente fino a 30 opzioni candidate deve concludersi entro 5 secondi nel 95\% delle esecuzioni, in condizioni di deployment standard (Docker Compose, hardware di riferimento del PoC). In caso di superamento del tempo massimo, il sistema deve comunque restituire uno stato esplicito di ``indeterminato per timeout'', senza bloccare l'interfaccia.
+
+\textbf{Motivazione:} la soglia di 5 secondi è stata concordata per garantire che la funzionalità di analisi what-if possa essere utilizzata in modo interattivo durante riunioni tecniche, senza interrompere il flusso di discussione dell'operatore.
+
+\RNF{Tracciabilità delle decisioni.} \label{rnf:tracciabilita}
+Ogni esecuzione di ottimizzazione deve essere persistita ai fini di audit, con: istante di esecuzione, parametri di input, stato del calcolo, indici aggregati, spiegazioni prodotte e hash canonico del problema. Lo storico deve essere consultabile e non modificabile dall'interfaccia utente.
+
+\textbf{Motivazione:} l'auditabilità delle scelte è richiesta per garantire che le decisioni assunte sulla base di TEPO possano essere ricostruite e giustificate in sede di controllo amministrativo, anche a distanza di tempo.
+
+\RNF{Interpretabilità delle spiegazioni.} \label{rnf:interpretabilita}
+Ogni opzione candidata deve essere corredata da una spiegazione deterministica riconducibile a una categoria esplicita (selezione diretta, selezione come prerequisito, esclusione per uno specifico vincolo, esclusione non localmente dimostrabile). Il sistema non deve produrre spiegazioni in linguaggio naturale generato in modo non deterministico per classificare la causa di selezione o esclusione.
+
+\textbf{Motivazione:} la trasparenza decisionale è uno degli obiettivi primari dichiarati dal committente; spiegazioni opache o non riproducibili non sarebbero accettabili in sede di presentazione dei risultati alla cittadinanza.
+
+\RNF{Isolamento e opzionalità della componente AI.} \label{rnf:ai_isolamento}
+La componente di assistenza AI deve essere confinata alla generazione di proposte di configurazione e non deve avere accesso in scrittura ai dati di catalogo, ai vincoli, ai parametri di scenario applicati, al risultato dell'ottimizzazione, né alle spiegazioni. L'applicativo deve essere pienamente funzionante in assenza di configurazione di un provider LLM e non deve richiedere alcuna chiave API per l'esecuzione della demo locale.
+
+\textbf{Motivazione:} l'app funziona completamente senza API key per scelta architetturale esplicita, al fine di garantire la riproducibilità della demo in contesti offline o in assenza di credenziali esterne, e per evitare che l'attivazione di un LLM possa introdurre comportamenti non verificabili nel perimetro decisionale.
+
+\RNF{Compatibilità.} \label{rnf:compatibilita}
+Il sistema deve essere utilizzabile da browser moderni: Chrome versione 100 o superiore, Firefox versione 100 o superiore, Safari versione 15 o superiore, Microsoft Edge versione 100 o superiore. Il design deve essere responsivo e garantire la corretta fruizione dei contenuti su viewport con larghezza compresa tra 320px (mobile) e 1920px (desktop).
+
+\textbf{Motivazione:} le versioni minime indicate corrispondono alle versioni dei browser installate sulle postazioni di lavoro tipicamente utilizzate negli uffici tecnici del Comune e sui dispositivi personali degli operatori, coerentemente con la compatibilità dichiarata per il progetto.
+
+\RNF{Accessibilità.} \label{rnf:accessibilita}
+Il sistema deve essere conforme alle linee guida WCAG 2.1 livello AA per quanto riguarda contrasto cromatico, navigazione da tastiera, focus visibile, testi alternativi per le immagini e struttura semantica delle pagine.
+
+\textbf{Motivazione:} la platea degli operatori tecnici include utenti con livelli di familiarità digitale diversificati; il rispetto delle linee guida WCAG 2.1 AA è stato assunto come riferimento perché è lo standard richiesto per i servizi pubblici digitali.
+
+\RNF{Manutenibilità e documentazione delle API.} \label{rnf:manutenibilita}
+Il sistema deve esporre le proprie API secondo una descrizione formale consultabile in modalità interattiva (interfaccia Swagger UI) e deve essere organizzato in moduli indipendenti e testabili. Ogni modifica alle API pubbliche deve essere riflessa nella documentazione tecnica.
+
+\textbf{Motivazione:} la manutenibilità del sistema nel medio periodo è un requisito esplicito, in quanto il PoC è destinato a evolvere verso l'integrazione con dati reali del Comune e sarà oggetto di valutazione in sede accademica.
+
+\RNF{Snapshot immutabile delle revisioni dati.} \label{rnf:snapshot}
+Ogni esecuzione di ottimizzazione registrata ai fini di audit deve essere ricostruibile a partire dall'hash canonico del problema e dalla revisione del catalogo dati utilizzata al momento dell'esecuzione. Il sistema deve rendere possibile associare a ciascuna esecuzione l'identificativo della revisione dei dati.
+
+\textbf{Motivazione:} senza un riferimento esplicito alla revisione del catalogo, un risultato prodotto in una sessione precedente non sarebbe riproducibile qualora il catalogo fosse successivamente modificato, compromettendo l'affidabilità dell'audit.

@@ -1,0 +1,86 @@
+\section{Requisiti Funzionali}
+
+\subsection{Requisiti funzionali di catalogo e consultazione}
+
+\RF{Consultazione del catalogo degli edifici.} \label{rf:catalogo_edifici}
+Il sistema deve consentire agli utenti di consultare il catalogo degli edifici pubblici di interesse, con le informazioni anagrafiche e geometriche essenziali per la valutazione degli interventi (identificativo, denominazione, indirizzo, coordinate geografiche, tipologia d'uso, superficie, anno di costruzione quando disponibile). Per ciascun edificio il sistema deve rendere visibili gli interventi candidati a esso associati. Il sistema deve inoltre rendere esplicita la provenienza del dato (reale, stimato, sintetico) per ciascun edificio.
+
+\RF{Visualizzazione geografica degli edifici.} \label{rf:mappa}
+Il sistema deve offrire una vista cartografica degli edifici, con la possibilità di individuare rapidamente la collocazione di ciascun immobile sul territorio comunale. La mappa deve permettere di distinguere visivamente gli edifici che ospitano interventi selezionati, esclusi o non valutati in uno scenario corrente.
+
+\RF{Consultazione del catalogo degli interventi.} \label{rf:catalogo_interventi}
+Il sistema deve consentire di consultare l'insieme delle opzioni di intervento disponibili, mostrando per ciascuna: edificio di riferimento, tipologia (LED, serramenti, isolamento, pompa di calore, fotovoltaico, caldaia), costo stimato, risparmio energetico annuo atteso, risparmio economico annuo atteso, riduzione annua attesa di CO\textsubscript{2}, tempo di ritorno semplice e stato di valutazione rispetto a uno scenario corrente.
+
+\RF{Ricerca e filtraggio degli interventi.} \label{rf:filtri_interventi}
+Il sistema deve permettere di ricerca e filtrare le opzioni di intervento in base a molteplici criteri combinabili (ricerca testuale, edificio di riferimento, tipologia di intervento, intervallo di costo, stato di valutazione in uno scenario). L'utente deve poter ordinare i risultati per le principali grandezze numeriche (costo, risparmio energetico, risparmio economico, CO\textsubscript{2}, payback).
+
+\RF{Importazione di dati di catalogo.} \label{rf:import_csv}
+Il sistema deve consentire l'importazione di dati di catalogo (edifici e opzioni di intervento) da file in formato CSV. L'importazione deve avvenire in due fasi, con una fase di validazione \emph{a secco} che produce un'anteprima delle righe valide, di quelle scartate e delle relative motivazioni, e una fase di conferma che persiste i dati validati. Il sistema non deve mai interpretare in modo silenzioso un valore malformato o mancante come zero.
+
+\subsection{Requisiti funzionali di configurazione dello scenario}
+
+\RF{Configurazione di uno scenario di ottimizzazione.} \label{rf:config_scenario}
+Il sistema deve consentire all'operatore tecnico di costruire uno scenario di ottimizzazione specificando almeno: budget complessivo disponibile, obiettivo da perseguire tra quelli supportati (risparmio energetico, risparmio economico, riduzione di CO\textsubscript{2}) e insieme delle opzioni di intervento candidate. Il sistema deve rendere sempre visibili all'operatore i parametri correnti dello scenario.
+
+\RF{Definizione dei vincoli dello scenario.} \label{rf:vincoli_scenario}
+Il sistema deve consentire all'operatore di specificare sullo scenario i vincoli applicabili, tra cui:
+\begin{itemize}
+    \item coppie di opzioni mutuamente incompatibili;
+    \item relazioni di prerequisito tra opzioni (un'opzione richiede che un'altra sia selezionata);
+    \item un numero massimo di opzioni selezionabili all'interno di un sottoinsieme specificato;
+    \item opzioni obbligatoriamente incluse oppure obbligatoriamente escluse dal portafoglio.
+\end{itemize}
+Il sistema deve impedire la costruzione di scenari logicamente incoerenti (es. la stessa opzione contemporaneamente inclusa ed esclusa).
+
+\RF{Selezione del sottoinsieme di candidati.} \label{rf:candidati}
+Il sistema deve consentire di selezionare in modo puntuale quali opzioni di intervento entrano a far parte dell'insieme dei candidati dello scenario, a partire dall'intero catalogo. Il sistema deve fornire funzioni di selezione e deselezione rapida (es. seleziona tutti, deseleziona tutti) e deve mostrare in modo chiaro il numero di candidati correntemente selezionati.
+
+\subsection{Requisiti funzionali di ottimizzazione e spiegazione}
+
+\RF{Esecuzione dell'ottimizzazione.} \label{rf:ottimizzazione}
+Il sistema deve, su richiesta dell'operatore, calcolare il portafoglio ottimo di opzioni di intervento rispetto all'obiettivo dello scenario, nel rispetto di tutti i vincoli specificati. Il sistema deve comunicare in modo esplicito lo stato del calcolo (ottimo dimostrato, ammissibile senza prova di ottimalità, inammissibile, indeterminato per timeout) e, in caso di ottimo, deve produrre la lista degli interventi selezionati corredata degli indicatori aggregati dello scenario (investimento totale, risparmio energetico totale, risparmio economico totale, CO\textsubscript{2} evitata). Il calcolo deve essere deterministico: a parità di scenario, lo stesso portafoglio deve essere prodotto.
+
+\RF{Visualizzazione dei risultati dell'ottimizzazione.} \label{rf:risultati}
+Il sistema deve presentare i risultati dell'ottimizzazione con indicatori sintetici dello scenario e con l'elenco dettagliato degli interventi selezionati e non selezionati. Per ciascun intervento deve essere reso visibile almeno il contributo all'obiettivo, il costo, il risparmio energetico, il risparmio economico e la riduzione di CO\textsubscript{2}.
+
+\RF{Spiegazione deterministica delle scelte.} \label{rf:spiegazioni}
+Il sistema deve produrre, per ciascuna opzione candidata, una spiegazione deterministica e verificabile della sua selezione o esclusione, classificata in una delle seguenti categorie:
+\begin{itemize}
+    \item \emph{selezionato} per contributo diretto all'obiettivo;
+    \item \emph{selezionato in quanto prerequisito} di altre opzioni selezionate;
+    \item \emph{escluso per incompatibilità} con un'opzione selezionata;
+    \item \emph{escluso per prerequisito mancante};
+    \item \emph{escluso per budget totale insufficiente};
+    \item \emph{escluso per budget residuo insufficiente};
+    \item \emph{escluso per vincolo di numero massimo};
+    \item \emph{escluso per vincolo esplicito di esclusione};
+    \item \emph{escluso in quanto non ottimale} (causa specifica non deducibile localmente).
+\end{itemize}
+La spiegazione deve distinguere esplicitamente i casi in cui la causa è dimostrabile localmente da quelli in cui è classificata come ``non ottimale''.
+
+\RF{Consultazione dello storico delle ottimizzazioni.} \label{rf:storico}
+Il sistema deve registrare le esecuzioni di ottimizzazione in uno storico consultabile, mantenendo per ciascuna esecuzione almeno: istante di esecuzione, parametri dello scenario, stato del calcolo, indicatori aggregati e hash canonico del problema.
+
+\subsection{Requisiti funzionali di analisi comparativa}
+
+\RF{Gestione degli scenari salvati.} \label{rf:scenari_salvati}
+Il sistema deve consentire all'operatore di salvare lo scenario corrente in due slot di confronto (A e B) e di richiamarli per successive modifiche o esecuzioni. Il sistema deve rendere visibile in ogni momento se ciascuno slot è popolato o vuoto.
+
+\RF{Confronto tra due scenari.} \label{rf:confronto}
+Il sistema deve consentire di confrontare due scenari (A e B) e di mostrare, per ciascuno, i parametri principali e gli indicatori aggregati, mettendo in evidenza le differenze (scostamenti di investimento, risparmio energetico, risparmio economico, CO\textsubscript{2}, numero di interventi selezionati).
+
+\RF{Analisi di sensibilità sul budget.} \label{rf:sensibilita}
+Il sistema deve consentire di eseguire, a partire dallo scenario corrente, un'analisi di sensibilità sul parametro budget, mostrando come variano l'obiettivo e la composizione del portafoglio al variare del budget disponibile. L'analisi deve classificare ogni opzione in \emph{sempre selezionata}, \emph{mai selezionata} e \emph{selezionata solo per alcune soglie di budget}, e deve essere deterministica.
+
+\subsection{Requisiti funzionali di assistenza AI (opzionali)}
+
+\RF{Proposta assistita di configurazione dello scenario.} \label{rf:ai_proposta}
+Il sistema deve offrire, in modo opzionale, la possibilità di ottenere una proposta di configurazione dello scenario a partire da una richiesta in linguaggio naturale dell'operatore (es. ``\emph{vorrei concentrarmi sulla riduzione di CO\textsubscript{2} con 500 mila euro}''). La proposta deve riguardare esclusivamente i parametri di configurazione (budget, obiettivo, insieme dei candidati) e deve essere resa all'operatore corredata da informazioni sull'origine (motore a regole oppure modello linguistico esterno) e da eventuali segnalazioni di incompletezza.
+
+\RF{Approvazione umana della proposta AI.} \label{rf:ai_approvazione}
+Il sistema deve richiedere sempre un'atto esplicito di approvazione da parte dell'operatore prima di applicare una proposta AI allo scenario corrente. Il sistema deve consentire all'operatore di accettare, modificare oppure rifiutare la proposta; in nessun caso la proposta AI deve essere applicata automaticamente.
+
+\subsection{Requisiti funzionali di presentazione}
+
+\RF{Cambio del tema di visualizzazione.} \label{rf:tema}
+Il sistema deve consentire all'utente di alternare tra un tema chiaro e un tema scuro per l'interfaccia, mantenendo la scelta tra una sessione e la successiva. La preferenza del sistema operativo deve essere utilizzata come valore di default alla prima apertura.

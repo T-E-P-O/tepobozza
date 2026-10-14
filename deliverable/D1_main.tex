@@ -1,0 +1,261 @@
+\documentclass[12pt, a4paper]{article}
+
+
+\usepackage[utf8]{inputenc}
+\usepackage[italian]{babel}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amsmath, amssymb}
+\usepackage{geometry}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{eurosym}
+\usepackage{graphicx}
+\usepackage{titlesec}
+\usepackage{tcolorbox}
+\usepackage{hyphenat}
+\usepackage{tocloft}
+\usepackage{xcolor}
+\usepackage{hyperref}
+
+\usepackage{datetime} 
+\usepackage{array}
+\usepackage{float}
+
+% --- AGGIUNTI PER IL D1 DI TEPO ---
+\usepackage{listings}     % per i blocchi PlantUML in UD.tex e UF.tex
+\usepackage{longtable}    % per le tabelle di Traceability.tex e GestioneModifiche.tex
+
+% --- CONFIGURAZIONE LISTINGS ---
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codegreen}{rgb}{0.1,0.5,0.1}
+\definecolor{codeblue}{rgb}{0.1,0.1,0.6}
+\lstset{
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{codeblue}\bfseries,
+  commentstyle=\color{codegreen}\itshape,
+  stringstyle=\color{codegray},
+  frame=single,
+  breaklines=true,
+  showstringspaces=false,
+  captionpos=b,
+  columns=fullflexible,
+  keepspaces=true
+}
+
+% Define \RF for functional requirements
+
+\makeatletter
+% RF
+\def\toclevel@RF{2}
+\def\toclevel@subRF{3}
+
+% RNF
+\def\toclevel@RNF{2}
+\def\toclevel@subRNF{3}
+
+% User Stories
+\def\toclevel@US{2}
+\def\toclevel@UF{2}
+
+% --- Section format ---
+\titleformat{\section}
+  {\normalfont\LARGE\bfseries}  % Font style: normal + Large + bold
+  {\thesection}                 % Section number format
+  {6pt}                         % Space between number and title
+  {}
+
+% ---------------------------
+% REQUISITI FUNZIONALI (RF)
+% ---------------------------
+\newcounter{reqfunc}                  % contatore RF
+\newcounter{subRFcounter}[reqfunc]    % contatore sotto-RF
+
+% Dichiaro due livelli personalizzati per RF e subRF
+\makeatletter
+\newcommand{\l@RF}{\@dottedtocline{2}{1.5em}{2.3em}}
+\newcommand{\l@subRF}{\@dottedtocline{3}{3.8em}{3.4em}}
+\makeatother
+
+\renewcommand{\thesubRFcounter}{\arabic{reqfunc}.\arabic{subRFcounter}}
+
+\newcommand{\RF}[1]{%
+  \refstepcounter{reqfunc}%
+  \setcounter{subRFcounter}{0}%
+
+  \addcontentsline{toc}{RF}{RF \arabic{reqfunc}: #1}%
+  
+  \paragraph*{RF \arabic{reqfunc}: #1}%
+}
+
+\newcommand{\subRF}[1]{%
+  \refstepcounter{subRFcounter}%
+  \addcontentsline{toc}{subRF}{RF \thesubRFcounter: #1}%
+  \noindent\hspace{1.5em}\textbf{RF \thesubRFcounter:} #1\par
+}
+
+% ---------------------------
+% REQUISITI NON FUNZIONALI (RNF)
+% ---------------------------
+
+\newcounter{reqnonfunc}
+\newcounter{subRNFcounter}[reqnonfunc]
+
+% Livelli personalizzati per TOC (identici a RF)
+\makeatletter
+\newcommand{\l@RNF}{\@dottedtocline{2}{1.5em}{2.3em}}
+\newcommand{\l@subRNF}{\@dottedtocline{3}{3.8em}{3.4em}}
+\makeatother
+
+\renewcommand{\thesubRNFcounter}{\arabic{reqnonfunc}.\arabic{subRNFcounter}}
+
+\newcommand{\RNF}[1]{%
+  \refstepcounter{reqnonfunc}%
+  \setcounter{subRNFcounter}{0}%
+  \addcontentsline{toc}{RNF}{RNF \arabic{reqnonfunc}: #1}%
+  \paragraph*{RNF \arabic{reqnonfunc}: #1}%
+}
+
+\newcommand{\subRNF}[1]{%
+  \refstepcounter{subRNFcounter}%
+  \addcontentsline{toc}{subRNF}{RNF \thesubRNFcounter: #1}%
+  \noindent\hspace{1.5em}\textbf{RNF \thesubRNFcounter:} #1\par
+}
+
+% ---------------------------
+% User Stories (US)
+% ---------------------------
+
+\newcounter{userStories}
+
+% Livelli personalizzati per TOC (identici a RF)
+\makeatletter
+\newcommand{\l@US}{\@dottedtocline{2}{1.5em}{2.3em}}
+
+\makeatother
+
+\newcommand{\US}[1]{%
+  \refstepcounter{userStories}%
+  \addcontentsline{toc}{US}{US \arabic{userStories}: #1}%
+  \subsection*{User story \arabic{userStories}: #1}%
+}
+
+% ---------------------------
+% User Flow (UF)
+% ---------------------------
+
+\newcounter{userFlows}
+
+% Livelli personalizzati per TOC (identici a RF)
+\makeatletter
+\newcommand{\l@UF}{\@dottedtocline{2}{1.5em}{2.3em}}
+
+\makeatother
+
+\newcommand{\UF}[1]{%
+  \refstepcounter{userFlows}%
+  \addcontentsline{toc}{UF}{UF \arabic{userFlows}: #1}%
+  \subsection*{User flow \arabic{userFlows}: #1}%
+} 
+
+\newcommand{\myfootertext}{}
+\newcommand{\myicon}{logo_unitn_chiaro.png}
+\newcommand{\myappicon}{logo_app.png}
+
+\definecolor{lightergray}{gray}{0.35}
+\definecolor{tocsec}{gray}{0.35}
+\definecolor{tocsubsec}{gray}{0.45}
+\pagecolor{white}
+\color{black}
+
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=lightergray,
+    urlcolor=cyan,
+    pdftitle={TEPO - D1},
+    pdfauthor={Gruppo T14}
+}
+
+\renewcommand{\cftsecfont}{\color{tocsec}\bfseries}
+\renewcommand{\cftsecpagefont}{\color{tocsec}\bfseries}
+\renewcommand{\cftsubsecfont}{\color{tocsubsec}}
+\renewcommand{\cftsubsecpagefont}{\color{tocsubsec}}
+\renewcommand{\cftsubsecleader}{\color{tocsubsec}\cftdotfill{\cftdotsep}}
+
+\geometry{margin=2.5cm}
+
+\begin{document}
+
+\begin{titlepage}
+    % --- Loghi in alto (Sinistra e Destra) ---
+    \begin{minipage}[t]{0.45\textwidth}
+        \hspace{0cm}
+        \href{https://www.unitn.it/}{
+            \includegraphics[height=4.2cm, keepaspectratio]{\myicon}%
+        }
+
+        \vspace{0pt}
+        \href{https://github.com/mirconegri/TEPO}{
+            \includegraphics[height=4.2cm, keepaspectratio]{\myappicon}
+        }
+    \end{minipage}
+
+    \vspace{1.5cm}
+
+    % --- Titolo e Dipartimento (Allineati a sinistra) ---
+    \begin{flushleft}
+        {\scshape\Large Università degli Studi di Trento \par}
+        {\large Dipartimento di Ingegneria e Scienza dell'Informazione \par}
+        
+        \vspace{1.5cm}
+        
+        {\Huge\bfseries TEPO - D1 \par}
+        \vspace{0.3cm}
+        {\Large\itshape Trento Energy Portfolio Optimizer \par}
+        \vspace{0.5cm}
+        {\color{cyan}\rule{\textwidth}{2pt}}
+    \end{flushleft}
+
+    \vspace{4cm}
+    
+    % --- Gruppo e Autori ---
+    \begin{flushleft}
+        {\Large \textbf{Gruppo T14} \par}
+        \vspace{0.3cm}
+        \renewcommand{\arraystretch}{1.3}
+        \begin{tabular}{@{}l}
+            \Large \href{https://github.com/mirconegri}{Mirco Negri} \\
+            \Large \href{https://github.com/ghebbb}{Gabriele Duca} \\
+            \Large \href{https://github.com/scheddiee}{Riccardo Scheda} \\
+        \end{tabular}
+    \end{flushleft}
+    
+    \vfill
+    
+    % --- Piè di pagina ---
+    \begin{flushleft}
+        {\small \textit{\myfootertext} \par}
+        {\large \monthname\ \the\year \par}
+    \end{flushleft}
+\end{titlepage}
+
+\newpage
+\begingroup
+\hypersetup{hidelinks}
+\tableofcontents
+\endgroup
+
+\newpage
+
+\include{sections/Il_nostro_progetto}
+\include{sections/RF}
+\include{sections/RNF}
+\include{sections/UD}
+\include{sections/US}
+\include{sections/DesingFrontEnd}
+\include{sections/UF}
+\include{sections/Traceability}
+\include{sections/GestioneModifiche}
+
+\end{document}

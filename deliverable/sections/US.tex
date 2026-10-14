@@ -1,0 +1,137 @@
+\section{User Stories}
+
+\textbf{Premessa:} in fase di implementazione alcune funzionalità potrebbero essere semplificate. Eventuali differenze tra progettazione e implementazione verranno chiarite nel documento D2.
+
+\US{Consultazione del catalogo degli edifici} \label{us:edifici}
+Come \textit{operatore tecnico del Comune} voglio consultare il catalogo degli edifici pubblici per individuare rapidamente gli immobili su cui sono già stati identificati interventi candidati. \\ (Riferito a RF\ref{rf:catalogo_edifici})
+
+\paragraph{Criteri di accettazione:}
+\begin{itemize}
+    \item \textbf{AC-US01-01:} Dato che l'utente accede alla pagina ``Edifici'', quando la pagina è caricata, allora il sistema mostra l'elenco completo degli edifici con identificativo, denominazione, indirizzo, tipologia d'uso e numero di interventi associati.
+    \item \textbf{AC-US01-02:} Dato che l'utente è sulla pagina ``Edifici'', quando applica un filtro per tipologia d'uso, allora il sistema mostra solo gli edifici corrispondenti.
+    \item \textbf{AC-US01-03:} Dato che l'utente è sulla pagina ``Edifici'', quando clicca sull'intestazione di una colonna, allora il sistema ordina l'elenco per la colonna selezionata.
+\end{itemize}
+
+\US{Visualizzazione geografica degli edifici} \label{us:mappa}
+Come \textit{operatore tecnico del Comune} voglio visualizzare gli edifici su una mappa per comprenderne la distribuzione territoriale e valutare interventi in aree omogenee. \\ (Riferito a RF\ref{rf:mappa})
+
+\paragraph{Criteri di accettazione:}
+\begin{itemize}
+    \item \textbf{AC-US02-01:} Dato che l'utente accede alla pagina ``Mappa'', quando la pagina è caricata, allora il sistema mostra gli edifici come marker sulla mappa, posizionati alle coordinate registrate.
+    \item \textbf{AC-US02-02:} Dato che l'utente visualizza la mappa con uno scenario caricato, quando i marker sono renderizzati, allora il sistema colora i marker in base allo stato dell'edificio nello scenario (con interventi selezionati, esclusi, non valutati).
+\end{itemize}
+
+\US{Consultazione e ricerca degli interventi} \label{us:interventi}
+Come \textit{operatore tecnico del Comune} voglio consultare e filtrare le opzioni di intervento disponibili per costruire un sottoinsieme di candidati ragionato. \\ (Riferito a RF\ref{rf:catalogo_interventi}, RF\ref{rf:filtri_interventi})
+
+\paragraph{Criteri di accettazione:}
+\begin{itemize}
+    \item \textbf{AC-US03-01:} Dato che l'utente accede alla pagina ``Interventi'', quando la pagina è caricata, allora il sistema mostra l'elenco completo degli interventi con edificio, tipologia, costo, risparmio energetico, risparmio economico, CO\textsubscript{2} e payback.
+    \item \textbf{AC-US03-02:} Dato che l'utente è sulla pagina ``Interventi'', quando applica uno o più filtri (ricerca testuale, edificio, tipologia, intervallo di costo, stato), allora il sistema mostra solo gli interventi che soddisfano tutti i criteri applicati.
+    \item \textbf{AC-US03-03:} Dato che l'utente è sulla pagina ``Interventi'', quando la ricerca non produce risultati, allora il sistema mostra un messaggio informativo.
+\end{itemize}
+
+\US{Importazione di dati di catalogo da CSV} \label{us:import}
+Come \textit{operatore tecnico del Comune} voglio poter caricare dati di catalogo da file CSV per non dover inserire manualmente gli edifici e gli interventi. \\ (Riferito a RF\ref{rf:import_csv})
+
+\paragraph{Criteri di accettazione:}
+\begin{itemize}
+    \item \textbf{AC-US04-01:} Dato che l'utente accede alla pagina ``Importazione'', quando carica un file CSV, allora il sistema mostra un'anteprima delle righe valide, delle righe scartate e delle relative motivazioni.
+    \item \textbf{AC-US04-02:} Dato che il sistema ha prodotto un'anteprima di validazione, quando l'utente conferma l'importazione, allora il sistema persiste solo le righe valide.
+    \item \textbf{AC-US04-03:} Dato che una riga contiene un valore numerico malformato, quando il sistema esegue la validazione, allora la riga viene scartata con motivazione esplicita e non viene interpretata come zero.
+\end{itemize}
+
+\US{Configurazione di uno scenario di ottimizzazione} \label{us:scenario}
+Come \textit{operatore tecnico del Comune} voglio configurare uno scenario di ottimizzazione specificando budget, obiettivo e candidati per ottenere un portafoglio ottimo di interventi. \\ (Riferito a RF\ref{rf:config_scenario}, RF\ref{rf:candidati})
+
+\paragraph{Criteri di accettazione:}
+\begin{itemize}
+    \item \textbf{AC-US05-01:} Dato che l'utente è nella pagina ``Scenario'', quando modifica il budget, allora il sistema aggiorna il valore visualizzato e lo mantiene in memoria fino al salvataggio.
+    \item \textbf{AC-US05-02:} Dato che l'utente è nella pagina ``Scenario'', quando seleziona un obiettivo tra risparmio energetico, risparmio economico e riduzione di CO\textsubscript{2}, allora il sistema evidenzia l'obiettivo attivo.
+    \item \textbf{AC-US05-03:} Dato che l'utente è nella pagina ``Scenario'', quando seleziona o deseleziona candidati, allora il sistema aggiorna il contatore dei candidati selezionati.
+\end{itemize}
+
+\US{Definizione dei vincoli dello scenario} \label{us:vincoli}
+Come \textit{operatore tecnico del Comune} voglio specificare i vincoli dello scenario (incompatibilità, prerequisiti, numero massimo, inclusione ed esclusione) per riflettere i vincoli tecnici e di policy dell'Amministrazione. \\ (Riferito a RF\ref{rf:vincoli_scenario})
+
+\paragraph{Criteri di accettazione:}
+\begin{itemize}
+    \item \textbf{AC-US06-01:} Dato che l'utente è nella pagina ``Scenario'', quando aggiunge una coppia di opzioni incompatibili, allora il sistema memorizza il vincolo e lo mostra nella lista dei vincoli correnti.
+    \item \textbf{AC-US06-02:} Dato che l'utente è nella pagina ``Scenario'', quando specifica che un'opzione B richiede un'opzione A come prerequisito, allora il sistema memorizza il vincolo.
+    \item \textbf{AC-US06-03:} Dato che l'utente tenta di salvare uno scenario con la stessa opzione contemporaneamente inclusa ed esclusa, allora il sistema blocca il salvataggio e mostra un messaggio di errore.
+\end{itemize}
+
+\US{Esecuzione dell'ottimizzazione} \label{us:ottimizza}
+Come \textit{operatore tecnico del Comune} voglio eseguire l'ottimizzazione dello scenario per ottenere il portafoglio ottimo rispetto all'obiettivo scelto. \\ (Riferito a RF\ref{rf:ottimizzazione}, RF\ref{rf:risultati})
+
+\paragraph{Criteri di accettazione:}
+\begin{itemize}
+    \item \textbf{AC-US07-01:} Dato che lo scenario corrente è valido, quando l'utente richiede l'ottimizzazione, allora il sistema presenta il portafoglio selezionato, gli indicatori aggregati e lo stato del calcolo.
+    \item \textbf{AC-US07-02:} Dato che lo scenario corrente contiene opzioni candidate, quando l'utente esegue due volte l'ottimizzazione senza modificare i parametri, allora il sistema restituisce lo stesso portafoglio e lo stesso hash canonico del problema.
+    \item \textbf{AC-US07-03:} Dato che il calcolo supera il tempo massimo configurato, quando il sistema produce il risultato, allora lo stato riportato è ``indeterminato per timeout'' e l'interfaccia non resta bloccata.
+\end{itemize}
+
+\US{Consultazione delle spiegazioni} \label{us:spiegazioni}
+Come \textit{operatore tecnico del Comune} voglio leggere la motivazione della selezione o dell'esclusione di ciascun intervento per poter giustificare la scelta in sede amministrativa. \\ (Riferito a RF\ref{rf:spiegazioni})
+
+\paragraph{Criteri di accettazione:}
+\begin{itemize}
+    \item \textbf{AC-US08-01:} Dato che l'utente visualizza i risultati dell'ottimizzazione, quando scorre la sezione ``Spiegazioni'', allora il sistema mostra per ciascuna opzione candidata la categoria di motivazione.
+    \item \textbf{AC-US08-02:} Dato che un'opzione è stata esclusa per budget insufficiente, quando l'utente consulta la spiegazione, allora la categoria mostrata è ``esclusa per budget totale insufficiente'' oppure ``esclusa per budget residuo insufficiente''.
+    \item \textbf{AC-US08-03:} Dato che la causa dell'esclusione non è localmente dimostrabile, quando l'utente consulta la spiegazione, allora la categoria mostrata è ``esclusa in quanto non ottimale''.
+\end{itemize}
+
+\US{Salvataggio di due scenari A/B} \label{us:salva_ab}
+Come \textit{operatore tecnico del Comune} voglio salvare lo scenario corrente in due slot di confronto per poter costruire e confrontare alternative di investimento. \\ (Riferito a RF\ref{rf:scenari_salvati})
+
+\paragraph{Criteri di accettazione:}
+\begin{itemize}
+    \item \textbf{AC-US09-01:} Dato che l'utente ha configurato uno scenario, quando lo salva nello slot A, allora il sistema memorizza i parametri correnti nello slot A e lo indica visivamente.
+    \item \textbf{AC-US09-02:} Dato che lo slot A è popolato, quando l'utente salva un nuovo scenario nello slot B, allora il sistema mantiene invariato il contenuto dello slot A.
+\end{itemize}
+
+\US{Confronto tra due scenari} \label{us:confronto}
+Come \textit{decisore comunale} voglio confrontare due scenari A e B per valutare alternative di allocazione del budget con indicatori omogenei. \\ (Riferito a RF\ref{rf:confronto})
+
+\paragraph{Criteri di accettazione:}
+\begin{itemize}
+    \item \textbf{AC-US10-01:} Dato che entrambi gli slot A e B sono popolati, quando l'utente accede alla pagina ``Confronto'', allora il sistema mostra i parametri e gli indicatori aggregati di entrambi.
+    \item \textbf{AC-US10-02:} Dato che entrambi gli scenari sono visualizzati, quando il sistema mostra gli indicatori, allora evidenzia gli scostamenti (\emph{delta}) tra A e B per investimento, risparmio energetico, risparmio economico, CO\textsubscript{2} e numero di interventi.
+\end{itemize}
+
+\US{Analisi di sensibilità sul budget} \label{us:sensibilita}
+Come \textit{operatore tecnico del Comune} voglio analizzare come cambia il portafoglio ottimo al variare del budget per individuare la soglia oltre la quale il rendimento marginale decresce. \\ (Riferito a RF\ref{rf:sensibilita})
+
+\paragraph{Criteri di accettazione:}
+\begin{itemize}
+    \item \textbf{AC-US11-01:} Dato che lo scenario corrente è valido, quando l'utente richiede l'analisi di sensibilità, allora il sistema esegue una griglia deterministica di ottimizzazioni su valori di budget crescenti.
+    \item \textbf{AC-US11-02:} Dato che l'analisi è conclusa, quando l'utente visualizza i risultati, allora il sistema classifica ciascuna opzione in ``sempre selezionata'', ``mai selezionata'' e ``selezionata solo per alcune soglie di budget''.
+\end{itemize}
+
+\US{Proposta assistita dall'AI} \label{us:ai}
+Come \textit{operatore tecnico del Comune} voglio descrivere a parole l'obiettivo che ho in mente per ottenere una proposta preliminare di configurazione dello scenario, così da ridurre il tempo necessario a impostarla. \\ (Riferito a RF\ref{rf:ai_proposta})
+
+\paragraph{Criteri di accettazione:}
+\begin{itemize}
+    \item \textbf{AC-US12-01:} Dato che l'utente digita una richiesta in linguaggio naturale, quando invia la richiesta, allora il sistema restituisce una proposta con budget, obiettivo e insieme di candidati, corredata da origine (regole oppure modello esterno).
+    \item \textbf{AC-US12-02:} Dato che il componente esterno non è configurato, quando l'utente invia la richiesta, allora il sistema produce comunque una proposta attraverso il motore a regole e ne indica esplicitamente l'origine.
+\end{itemize}
+
+\US{Approvazione umana della proposta AI} \label{us:ai_appr}
+Come \textit{operatore tecnico del Comune} voglio poter accettare, modificare o rifiutare esplicitamente una proposta AI prima che questa venga applicata allo scenario, per mantenere il pieno controllo sulle decisioni. \\ (Riferito a RF\ref{rf:ai_approvazione})
+
+\paragraph{Criteri di accettazione:}
+\begin{itemize}
+    \item \textbf{AC-US13-01:} Dato che il sistema ha prodotto una proposta AI, quando l'utente la visualizza, allora la proposta non è applicata automaticamente allo scenario corrente.
+    \item \textbf{AC-US13-02:} Dato che l'utente clicca ``Applica'', quando i parametri della proposta sono validi, allora il sistema aggiorna lo scenario corrente e segnala l'avvenuta applicazione.
+    \item \textbf{AC-US13-03:} Dato che l'utente clicca ``Rifiuta'', quando la proposta è rifiutata, allora lo scenario corrente resta invariato.
+\end{itemize}
+
+\US{Cambio tema di visualizzazione} \label{us:tema}
+Come \textit{utente} voglio cambiare tema di visualizzazione tra chiaro e scuro per adattare l'interfaccia alle mie condizioni di utilizzo e preferenze. \\ (Riferito a RF\ref{rf:tema})
+
+\paragraph{Criteri di accettazione:}
+\begin{itemize}
+    \item \textbf{AC-US14-01:} Dato che l'utente clicca sull'interruttore di tema, quando il tema corrente è quello chiaro, allora il sistema applica il tema scuro all'intera interfaccia.
+    \item \textbf{AC-US14-02:} Dato che l'utente ha selezionato un tema, quando chiude e riapre l'applicazione, allora il sistema mantiene il tema selezionato.
+\end{itemize}

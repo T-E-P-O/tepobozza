@@ -1,0 +1,34 @@
+\section{Gestione delle modifiche dopo la baseline}
+
+Questa sezione documenta le modifiche significative apportate alla baseline, riportandone una breve sintesi e il collegamento alle relative GitHub Issue e/o Pull Request. La cronologia completa resta tracciata nel repository GitHub.
+
+\subsection*{Tipi di modifica}
+\begin{itemize}
+    \item \textbf{Req./UC/US/AC/MU Change:} modifica di un requisito, use case, user story, acceptance criteria o mockup.
+    \item \textbf{Clarification:} rende esplicito un significato precedentemente ambiguo o incompleto.
+\end{itemize}
+
+\subsection*{Registro delle modifiche}
+
+\begin{longtable}{p{1.6cm} p{1.7cm} p{4.5cm} p{2.2cm} p{3cm} p{2.5cm}}
+\caption{Registro delle modifiche di TEPO successive alla baseline.}\\
+\toprule
+\textbf{ID} & \textbf{Tipo} & \textbf{Descrizione} & \textbf{Origine} & \textbf{Artefatti impattati} & \textbf{GitHub / Stato} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{ID} & \textbf{Tipo} & \textbf{Descrizione} & \textbf{Origine} & \textbf{Artefatti impattati} & \textbf{GitHub / Stato} \\
+\midrule
+\endhead
+
+CH-TEPO-01 & Clarification & La soglia di prestazione dell'ottimizzazione è riferita a 30 opzioni candidate (non 26 come inizialmente indicato), in coerenza con l'estensione prevista del catalogo. & Team review & RNF\ref{rnf:prestazioni}; US\ref{us:ottimizza}; AC-US07-03 & \#12 --- DONE \\
+CH-TEPO-02 & Req. Change & Aggiunta esplicita, fra i limiti dichiarati, dell'assenza di pianificazione multi-anno e di frontiera di Pareto. & Stakeholder (debriefing) & Sezione 1; RNF\ref{rnf:isolamento} & \#18 --- DONE \\
+CH-TEPO-03 & Clarification & Chiarito che la componente AI può ricadere in modo automatico sul motore a regole qualora il provider esterno non sia configurato o non risponda. & Team review & RF\ref{rf:ai_proposta}; RNF\ref{rnf:ai_isolamento}; UC-09; AC-US12-02 & \#22 --- DONE \\
+CH-TEPO-04 & MU Change & Ridisegno del pannello di proposta AI con evidenziazione degli interventi proposti come esclusi senza deselezione automatica. & User feedback interno & MU-Fig.5; US\ref{us:ai_appr}; AC-US13-01 & \#25 --- OPEN \\
+CH-TEPO-05 & Req. Change & Introdotto requisito di snapshot immutabile delle revisioni dati (RNF\ref{rnf:snapshot}) per garantire la ricostruibilità dei run di audit. & Audit interno & RNF\ref{rnf:snapshot}; RF\ref{rf:storico}; UC-12 & \#28 --- OPEN \\
+CH-TEPO-06 & Clarification & Chiarito che la pagina di sensibilità esegue uno sweep deterministico sul budget e non una simulazione Monte Carlo. & Team review & RF\ref{rf:sensibilita}; US\ref{us:sensibilita}; AC-US11-01 & \#31 --- DONE \\
+
+\bottomrule
+\end{longtable}
+
+\textbf{Nota operativa.} Dopo la baseline, il D1 è un \emph{living artifact}: le modifiche significative vengono tracciate su GitHub e sottoposte a impact analysis. Gli artefatti successivi (D2, codice, test) sono indicati come impattati solo se già esistenti al momento della modifica. La cronologia completa è mantenuta nel repository, questa sezione ne riporta la sintesi.

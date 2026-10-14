@@ -1,0 +1,203 @@
+\section{Use Case Diagram}
+
+\subsection*{Attori}
+\begin{itemize}
+    \item \textbf{Operatore Tecnico:} tecnico del Comune incaricato di costruire scenari, eseguire ottimizzazioni e analizzare i risultati.
+    \item \textbf{Decisore Comunale:} soggetto (amministratore, dirigente) che consulta i risultati e le spiegazioni a supporto della decisione finale. Nell'attuale implementazione il ruolo coincide con quello dell'Operatore Tecnico.
+    \item \textbf{Assistente AI} (opzionale): componente che produce proposte di configurazione a partire da richieste in linguaggio naturale. È modellato come \emph{attore secondario}.
+    \item \textbf{Motore di Ottimizzazione} (CP-SAT): sistema esterno che risolve il problema di ottimizzazione combinatoria. Modellato come \emph{attore secondario}.
+    \item \textbf{Servizio Mappa:} sistema esterno che fornisce le tile cartografiche utilizzate per la visualizzazione geografica degli edifici.
+\end{itemize}
+
+\subsection*{Diagramma principale}
+
+\begin{lstlisting}[language=,caption={Use Case Diagram principale di TEPO}]
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+
+actor "Operatore Tecnico" as OT
+actor "Decisore Comunale" as DC
+actor "Assistente AI" as AI <<optional>>
+actor "Motore di Ottimizzazione\n(CP-SAT)" as SOLVER <<system>>
+actor "Servizio Mappa" as MAP <<system>>
+
+rectangle TEPO {
+  usecase "UC-01\nConsultare il catalogo\ndegli edifici" as UC01
+  usecase "UC-02\nConsultare il catalogo\ndegli interventi" as UC02
+  usecase "UC-03\nConfigurare uno\nscenario" as UC03
+  usecase "UC-04\nDefinire i vincoli\ndello scenario" as UC04
+  usecase "UC-05\nEseguire\nl'ottimizzazione" as UC05
+  usecase "UC-06\nConsultare risultati\ne spiegazioni" as UC06
+  usecase "UC-07\nSalvare e confrontare\nscenari A/B" as UC07
+  usecase "UC-08\nAnalisi di\nsensibilita sul budget" as UC08
+  usecase "UC-09\nOttenere una proposta\nassistita dall'AI" as UC09
+  usecase "UC-10\nApprovare o rifiutare\nla proposta AI" as UC10
+  usecase "UC-11\nImportare dati\nda CSV" as UC11
+  usecase "UC-12\nConsultare lo storico\ndelle ottimizzazioni" as UC12
+  usecase "UC-13\nVisualizzare gli edifici\nsu mappa" as UC13
+}
+
+OT --> UC01
+OT --> UC02
+OT --> UC03
+OT --> UC04
+OT --> UC05
+OT --> UC06
+OT --> UC07
+OT --> UC08
+OT --> UC09
+OT --> UC10
+OT --> UC11
+OT --> UC12
+OT --> UC13
+DC --> UC06
+DC --> UC07
+
+UC05 ..> SOLVER : <<include>>
+UC13 ..> MAP : <<include>>
+UC09 ..> AI : <<include>>
+UC10 .> UC09 : <<extend>>
+UC07 ..> UC06 : <<include>>
+UC08 ..> UC05 : <<include>>
+
+@enduml
+\end{lstlisting}
+
+% IMMAGINE: img/UseCaseDiagram.png -- Diagramma dei casi d'uso principale di TEPO
+
+\subsection{Descrizione dei casi d'uso principali}
+
+\paragraph{\large UC-03: Configurare uno scenario di ottimizzazione}
+
+\paragraph{RF collegati:} RF\ref{rf:config_scenario}, RF\ref{rf:candidati}, RF\ref{rf:vincoli_scenario}.
+
+\paragraph{Attore primario:} Operatore Tecnico.
+
+\paragraph{Obiettivo:} definire in modo completo i parametri (budget, obiettivo, candidati, vincoli) di uno scenario pronto per l'esecuzione dell'ottimizzazione.
+
+\paragraph{Precondizioni:} il catalogo degli edifici e degli interventi è popolato; l'utente ha accesso all'interfaccia di configurazione dello scenario.
+
+\paragraph{Postcondizioni:} lo scenario corrente contiene un budget valido, un obiettivo selezionato, un insieme non vuoto di candidati e un insieme di vincoli ben formati.
+
+\paragraph{Flusso principale:}
+\begin{enumerate}
+    \item L'utente apre la pagina di configurazione dello scenario.
+    \item Il sistema mostra i parametri correnti dello scenario (budget, obiettivo, candidati, vincoli).
+    \item L'utente inserisce o modifica il budget complessivo.
+    \item L'utente seleziona l'obiettivo tra risparmio energetico, risparmio economico e riduzione di CO\textsubscript{2}.
+    \item L'utente seleziona le opzioni di intervento candidate a partire dal catalogo. [Estensione 1]
+    \item L'utente aggiunge eventuali vincoli di incompatibilità, prerequisito, numero massimo, inclusione o esclusione. [Estensione 2]
+    \item Il sistema verifica la coerenza logica dei parametri. [Eccezione 1]
+    \item Il sistema conferma all'utente che lo scenario è pronto per l'ottimizzazione.
+\end{enumerate}
+
+\paragraph{Estensioni:}
+\begin{enumerate}
+    \item L'utente può utilizzare le funzioni di selezione rapida (seleziona tutti / deseleziona tutti) oppure filtrare il catalogo per edificio e tipologia prima di selezionare i candidati.
+    \item L'utente può rimuovere un vincolo precedentemente aggiunto.
+\end{enumerate}
+
+\paragraph{Eccezioni:}
+\begin{enumerate}
+    \item Se il budget è nullo o negativo, se non è stato selezionato alcun obiettivo, oppure se la stessa opzione risulta contemporaneamente inclusa ed esclusa, il sistema blocca il salvataggio e mostra un messaggio di errore specifico.
+\end{enumerate}
+
+\paragraph{\large UC-05: Eseguire l'ottimizzazione e consultare le spiegazioni}
+
+\paragraph{RF collegati:} RF\ref{rf:ottimizzazione}, RF\ref{rf:risultati}, RF\ref{rf:spiegazioni}.
+
+\paragraph{Attore primario:} Operatore Tecnico.
+
+\paragraph{Attori secondari:} Motore di Ottimizzazione.
+
+\paragraph{Obiettivo:} ottenere il portafoglio ottimo di interventi per lo scenario corrente e comprenderne le motivazioni.
+
+\paragraph{Precondizioni:} lo scenario corrente è completo e coerente (UC-03 concluso con successo).
+
+\paragraph{Postcondizioni:} il sistema mostra il portafoglio ottimo, gli indicatori aggregati e le spiegazioni per ciascuna opzione candidata. L'esecuzione è registrata nello storico delle ottimizzazioni.
+
+\paragraph{Flusso principale:}
+\begin{enumerate}
+    \item L'utente richiede l'esecuzione dell'ottimizzazione.
+    \item Il sistema valida nuovamente lo scenario.
+    \item Il sistema invoca il motore di ottimizzazione. [Estensione 1]
+    \item Il motore di ottimizzazione restituisce una soluzione con lo stato del calcolo.
+    \item Il sistema calcola le spiegazioni deterministiche per ciascuna opzione candidata.
+    \item Il sistema registra l'esecuzione nello storico ai fini di audit.
+    \item Il sistema presenta all'utente il portafoglio ottimo, gli indicatori aggregati e le spiegazioni.
+\end{enumerate}
+
+\paragraph{Estensioni:}
+\begin{enumerate}
+    \item In caso di più soluzioni ottime equivalenti, il sistema applica criteri di tie-break deterministici (minimizzazione del costo, minimizzazione del numero di interventi, preferenza per identificativi crescenti) e ne dà evidenza all'utente.
+\end{enumerate}
+
+\paragraph{Eccezioni:}
+\begin{enumerate}
+    \item Se il problema risulta inammissibile, il sistema mostra lo stato ``inammissibile'' e propone all'utente una diagnostica sulle possibili cause (es. vincolo di inclusione su un'opzione non candidata).
+    \item Se il calcolo supera il tempo massimo, il sistema mostra lo stato ``indeterminato per timeout'' e non presenta alcun portafoglio come definitivo.
+\end{enumerate}
+
+\paragraph{\large UC-07: Salvare e confrontare due scenari}
+
+\paragraph{RF collegati:} RF\ref{rf:scenari_salvati}, RF\ref{rf:confronto}.
+
+\paragraph{Attore primario:} Operatore Tecnico.
+
+\paragraph{Attore secondario:} Decisore Comunale.
+
+\paragraph{Obiettivo:} confrontare in modo strutturato due configurazioni alternative (scenario A e scenario B) per orientare la decisione.
+
+\paragraph{Precondizioni:} almeno due scenari sono stati configurati ed eventualmente ottimizzati.
+
+\paragraph{Postcondizioni:} il sistema mostra in modo comparato i parametri e gli indicatori aggregati dei due scenari, evidenziando gli scostamenti.
+
+\paragraph{Flusso principale:}
+\begin{enumerate}
+    \item L'utente salva lo scenario corrente nello slot A.
+    \item L'utente modifica lo scenario corrente e lo salva nello slot B. [Estensione 1]
+    \item L'utente accede alla pagina di confronto.
+    \item Il sistema recupera dagli slot A e B i parametri e gli indicatori aggregati delle rispettive esecuzioni.
+    \item Il sistema mostra i due scenari in forma tabellare, evidenziando gli scostamenti.
+\end{enumerate}
+
+\paragraph{Estensioni:}
+\begin{enumerate}
+    \item L'utente può sovrascrivere lo slot A o lo slot B con lo scenario corrente in qualunque momento, dopo conferma esplicita.
+\end{enumerate}
+
+\paragraph{\large UC-09: Ottenere una proposta assistita dall'AI}
+
+\paragraph{RF collegati:} RF\ref{rf:ai_proposta}, RF\ref{rf:ai_approvazione}.
+
+\paragraph{Attore primario:} Operatore Tecnico.
+
+\paragraph{Attore secondario:} Assistente AI (opzionale).
+
+\paragraph{Obiettivo:} ottenere una proposta preliminare di configurazione dello scenario a partire da una richiesta in linguaggio naturale.
+
+\paragraph{Precondizioni:} l'utente si trova nella pagina di configurazione dello scenario.
+
+\paragraph{Postcondizioni:} il sistema mostra una proposta di configurazione corredata da origine, eventuali segnalazioni e richiesta esplicita di approvazione umana.
+
+\paragraph{Flusso principale:}
+\begin{enumerate}
+    \item L'utente apre il pannello di assistenza AI.
+    \item L'utente digita la propria richiesta in linguaggio naturale.
+    \item Il sistema inoltra la richiesta al componente di assistenza (motore a regole oppure, se configurato, modello linguistico esterno). [Estensione 1]
+    \item Il componente di assistenza restituisce una proposta di configurazione con origine, eventuali informazioni mancanti ed eventuali avvisi.
+    \item Il sistema mostra la proposta all'utente senza applicarla.
+    \item L'utente accetta, modifica oppure rifiuta la proposta. [Eccezione 1]
+    \item In caso di accettazione, il sistema applica i parametri proposti allo scenario corrente e ne dà evidenza all'utente.
+\end{enumerate}
+
+\paragraph{Estensioni:}
+\begin{enumerate}
+    \item Se il modello linguistico esterno non è raggiungibile o restituisce una risposta non conforme, il sistema ricade sul motore a regole e segnala l'evento all'utente.
+\end{enumerate}
+
+\paragraph{Eccezioni:}
+\begin{enumerate}
+    \item Se l'utente rifiuta la proposta, il sistema non modifica lo scenario corrente.
+\end{enumerate}

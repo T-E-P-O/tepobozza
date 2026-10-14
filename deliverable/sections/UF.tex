@@ -1,0 +1,92 @@
+\section{User Flows}
+
+In questa sezione vengono riportati gli User Flow relativi ai principali comportamenti degli utenti all'interno dell'applicazione. Riportiamo nella seguente figura la legenda dei simboli utilizzati.
+
+% IMMAGINE: img/UF_legenda.png -- Legenda dei simboli usati negli user flow
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\linewidth]{img/UF_legenda.png}
+    \caption{Legenda dei simboli utilizzati negli User Flow}
+\end{figure}
+
+\UF{Configurazione scenario, proposta AI, approvazione umana, ottimizzazione e analisi delle spiegazioni} \label{uf:main}
+Associato alle user stories US\ref{us:scenario}, US\ref{us:vincoli}, US\ref{us:ottimizza}, US\ref{us:spiegazioni}, US\ref{us:ai}, US\ref{us:ai_appr} e ai requisiti funzionali RF\ref{rf:config_scenario}, RF\ref{rf:vincoli_scenario}, RF\ref{rf:candidati}, RF\ref{rf:ai_proposta}, RF\ref{rf:ai_approvazione}, RF\ref{rf:ottimizzazione}, RF\ref{rf:spiegazioni}.
+
+La Figura \ref{figuf:main} mostra il percorso principale dell'operatore tecnico, che parte dalla configurazione dello scenario e termina con l'analisi delle spiegazioni prodotte dal solver. Il flusso esplicita il passaggio di approvazione umana della proposta AI, che rappresenta un punto architetturalmente vincolante del sistema.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{img/UF_main.png}
+    \caption{Configurazione scenario, approvazione AI, ottimizzazione e spiegazioni}
+    \label{figuf:main}
+\end{figure}
+
+\noindent
+Di seguito si riporta la specifica del flusso in forma di diagramma di attività, in modo da chiarire l'ordine delle decisioni e delle transizioni principali.
+
+\begin{lstlisting}[language=,caption={Activity Diagram del flusso principale}]
+@startuml
+start
+:Operatore apre Scenario Builder;
+:Configura budget, obiettivo, candidati;
+if (Vuole assistenza AI?) then (si)
+  :Digita richiesta in linguaggio naturale;
+  :Sistema produce proposta AI;
+  :Sistema mostra proposta (non applicata);
+  if (Operatore approva?) then (si)
+    :Sistema applica parametri proposti;
+  else (no)
+    :Scenario resta invariato;
+  endif
+else (no)
+endif
+:Operatore definisce eventuali vincoli;
+if (Scenario coerente?) then (si)
+  :Operatore richiede ottimizzazione;
+  :Sistema invoca il motore di ottimizzazione;
+  :Sistema calcola spiegazioni deterministiche;
+  :Sistema registra esecuzione in audit;
+  :Sistema mostra risultati e spiegazioni;
+else (no)
+  :Sistema mostra messaggio di errore;
+endif
+stop
+@enduml
+\end{lstlisting}
+
+\UF{Confronto tra due scenari alternativi} \label{uf:confronto}
+Associato alle user stories US\ref{us:salva_ab} e US\ref{us:confronto} e ai requisiti funzionali RF\ref{rf:scenari_salvati}, RF\ref{rf:confronto}.
+
+La Figura \ref{figuf:confronto} mostra il percorso di costruzione di due alternative (scenario A e scenario B) e il confronto comparato dei risultati. Il decisore comunale è tipicamente fruitore finale di questa vista.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{img/UF_confronto.png}
+    \caption{Confronto tra due scenari A/B}
+    \label{figuf:confronto}
+\end{figure}
+
+\UF{Importazione dati di catalogo da CSV} \label{uf:import}
+Associato alla user story US\ref{us:import} e al requisito funzionale RF\ref{rf:import_csv}.
+
+La Figura \ref{figuf:import} mostra il percorso di importazione in due fasi (validazione a secco, poi conferma) con evidenza delle righe scartate e dei motivi di scarto.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{img/UF_import.png}
+    \caption{Importazione dati di catalogo da CSV}
+    \label{figuf:import}
+\end{figure}
+
+\UF{Analisi di sensibilità sul budget} \label{uf:sensibilita}
+Associato alla user story US\ref{us:sensibilita} e al requisito funzionale RF\ref{rf:sensibilita}.
+
+La Figura \ref{figuf:sensibilita} mostra il percorso di analisi di sensibilità: definizione della griglia di budget, esecuzione dello sweep, lettura della classificazione di stabilità delle opzioni.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{img/UF_sensibilita.png}
+    \caption{Analisi di sensibilità sul budget}
+    \label{figuf:sensibilita}
+\end{figure}
