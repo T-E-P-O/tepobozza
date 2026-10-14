@@ -5,9 +5,52 @@ import it.unitn.tepo.domain.Objective;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
+/**
+ * Assistente deterministico locale.
+ *
+ * Estrae un budget in EUR e un obiettivo da testo in linguaggio naturale.
+ * Non chiama LLM. Se il testo non contiene un budget plausibile, usa un
+ * default esplicito (500.000 EUR) e lo segnala nel campo `explanation`.
+ *
+ * Strategia di parsing (dopo fix 2026-10-14):
+ *  - individua i numeri con eventuale suffisso di unità (k, mila, mln, ...);
+ *  - scarta gli anni (4 cifre 1900-2100 senza unità);
+ *  - assegna un punteggio per prossimità a parole chiave di budget
+ *    ("budget", "spesa", "investimento", "€", "euro", "eur", ...);
+ *  - applica il moltiplicatore corrispondente;
+ *  - richiede punteggio minimo 10 (unità o contesto) per accettare un candidato.
+ *
+ * NON gestisce (limite dichiarato):
+ *  - valute diverse da EUR;
+ *  - range ("tra 300k e 500k");
+ *  - valori negativi o superiori a 10 miliardi EUR.
+ */
 @Service
 public class RuleBasedAiAssistant implements AiAssistant {
+
+    static final long DEFAULT_BUDGET_CENTS = 500_000_00L;   // 500.000 EUR
+    static final long MAX_BUDGET_CENTS = 10_000_000_000_00L; // 10 miliardi EUR
+
+    /**
+     * Numero con eventuale suffisso di unità.
+     *  - alternanza 1: "500.000" o "500,000" (separatore migliaia, 3 cifre)
+     *  - alternanza 2: "500", "1,5", "1.5" (numero semplice o decimale)
+     *  - lookbehind: non preceduto da cifra o separatore
+     *  - lookahead: non seguito da lettera (evita di matchare "500x")
+     */
+    private static final Pattern NUMBER_WITH_UNIT = Pattern.compile(
+            "(?<![\\d.,])(\\d{1,3}(?:[.,]\\d{3})+|\\d+(?:[.,]\\d+)?)\\s*"
+            + "(k|mila|mille|mln|milione|milioni|m)?(?![\\p{L}])",
+            Pattern.CASE_INSENSITIVE);
+
+    /** Parole chiave che indicano che un numero vicino è un budget. */
+    private static final Pattern BUDGET_KEYWORDS = Pattern.compile(
+            "budget|spesa|investimento|stanziamento|importo|disponibilit|€|euro|eur",
+            Pattern.CASE_INSENSITIVE);
 
     private final InterventionOptionRepository optionRepo;
 
@@ -19,36 +62,128 @@ public class RuleBasedAiAssistant implements AiAssistant {
     public ScenarioProposal propose(String text) {
         String lower = text == null ? "" : text.toLowerCase();
 
-        Objective obj = Objective.ENERGY_SAVING;
-        if (lower.contains("co2") || lower.contains("co₂") || lower.contains("emission")) {
-            obj = Objective.CO2_REDUCTION;
-        } else if (lower.contains("econom") || lower.contains("risparmio economic") || lower.contains("euro")) {
-            obj = Objective.ECONOMIC_SAVING;
-        }
+        Objective obj = detectObjective(lower);
+        Optional<Long> parsedBudget = extractBudget(text);
+        long budgetCents = parsedBudget.orElse(DEFAULT_BUDGET_CENTS);
 
-        long budget = 500_000_00L;
-        java.util.regex.Matcher m = java.util.regex.Pattern
-                .compile("(\\d{3,9})\\s*(k|mila|mila euro|m)?")
-                .matcher(lower);
-        if (m.find()) {
-            long n = Long.parseLong(m.group(1));
-            if ("k".equals(m.group(2)) || "mila".equals(m.group(2))) n *= 1000;
-            budget = n * 100;
-        }
+        String explanation = parsedBudget.isPresent()
+                ? "Proposta deterministica da testo: budget " + budgetCents + " cent, obiettivo " + obj
+                : "Budget non riconosciuto nel testo; uso default " + DEFAULT_BUDGET_CENTS
+                  + " cent (500.000 EUR). Obiettivo " + obj;
 
         List<String> ids = optionRepo.findAll().stream()
                 .map(o -> o.getId())
                 .toList();
 
         return new ScenarioProposal(
-                budget,
+                budgetCents,
                 obj,
                 ids,
-                "Proposta deterministica da testo: budget " + budget + " cent, obiettivo " + obj,
+                explanation,
                 ScenarioProposal.ProposalSource.RULE_BASED,
                 List.of(),
                 List.of(),
                 true
         );
+    }
+
+    private Objective detectObjective(String lower) {
+        if (lower.contains("co2") || lower.contains("co₂") || lower.contains("emission")) {
+            return Objective.CO2_REDUCTION;
+        }
+        if (lower.contains("econom") || lower.contains("risparmio economic")
+                || lower.contains("costo")) {
+            return Objective.ECONOMIC_SAVING;
+        }
+        return Objective.ENERGY_SAVING;
+    }
+
+    /**
+     * Estrae un budget in centesimi da testo in linguaggio naturale.
+     * Package-private per testabilità.
+     */
+    Optional<Long> extractBudget(String text) {
+        if (text == null || text.isBlank()) return Optional.empty();
+
+        Matcher m = NUMBER_WITH_UNIT.matcher(text);
+
+        long bestEuros = -1;
+        int bestScore = -1;
+
+        while (m.find()) {
+            String numPart = m.group(1);
+            String unitPart = m.group(2);
+            String unit = unitPart == null ? "" : unitPart.toLowerCase();
+
+            Long euros = parseNumberWithUnit(numPart, unit);
+            if (euros == null || euros <= 0) continue;
+
+            long cents = euros * 100;
+            if (cents > MAX_BUDGET_CENTS) continue;
+
+            if (unit.isEmpty() && isYear(numPart)) continue;
+
+            int score = scoreCandidate(text, m.start(), m.end(), !unit.isEmpty());
+            if (score < 10) continue;
+
+            if (score > bestScore) {
+                bestScore = score;
+                bestEuros = euros;
+            }
+        }
+
+        return bestEuros > 0 ? Optional.of(bestEuros * 100) : Optional.empty();
+    }
+
+    private static boolean isYear(String numPart) {
+        if (numPart.length() != 4) return false;
+        if (numPart.contains(".") || numPart.contains(",")) return false;
+        try {
+            long n = Long.parseLong(numPart);
+            return n >= 1900 && n <= 2100;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+
+    private Long parseNumberWithUnit(String numPart, String unit) {
+        String normalized;
+        if (numPart.matches("\\d{1,3}([.,]\\d{3})+")) {
+            normalized = numPart.replaceAll("[.,]", "");
+        } else {
+            normalized = numPart.replace(',', '.');
+        }
+
+        double value;
+        try {
+            value = Double.parseDouble(normalized);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+
+        return switch (unit) {
+            case "k", "mila", "mille" -> Math.round(value * 1_000);
+            case "m", "mln", "milione", "milioni" -> Math.round(value * 1_000_000);
+            default -> Math.round(value);
+        };
+    }
+
+    private int scoreCandidate(String text, int start, int end, boolean hasUnit) {
+        int score = hasUnit ? 10 : 0;
+
+        // Contesto di budget entro 30 caratteri a sinistra
+        int ctxStart = Math.max(0, start - 30);
+        if (BUDGET_KEYWORDS.matcher(text.substring(ctxStart, end)).find()) {
+            score += 20;
+        }
+
+        // "budget", "euro" o "€" entro 20 caratteri a destra
+        int afterEnd = Math.min(text.length(), end + 20);
+        String after = text.substring(end, afterEnd);
+        if (BUDGET_KEYWORDS.matcher(after).find()) {
+            score += 15;
+        }
+
+        return score;
     }
 }
