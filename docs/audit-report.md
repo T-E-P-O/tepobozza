@@ -9,19 +9,20 @@ MVP completo, testato, con:
 - dataset demo con obiettivi distinti (Fase E);
 - analisi di sensibilità sul budget (Fase E).
 
-Test automatici: **101 backend**, **19 frontend**, tutti verdi.
+Test automatici: **119 backend**, **19 frontend**, tutti verdi.
 
 ## Controlli eseguiti
 
 | Controllo | Esito | Data |
 |---|---|---|
-| `mvn -B clean test` | 101/101 verdi | 2026-10-12 |
-| `npm test -- --run` | 19/19 verdi | 2026-10-12 |
-| `npx tsc --noEmit` | pulito | 2026-10-12 |
-| `npm run build` | OK | 2026-10-12 |
+| `mvn -B clean test` (Docker, `maven:3.9-eclipse-temurin-21`) | 119/119 verdi | 2026-10-17 |
+| `npm test -- --run` | 19/19 verdi | 2026-10-17 |
+| `npx tsc --noEmit` | pulito | 2026-10-17 |
+| `npm run build` | OK | 2026-10-17 |
+| `docker compose up --build -d` | 3 container healthy | 2026-10-17 |
 | `docker compose build --no-cache` | OK | 2026-10-11 |
 
-Ambiente: JDK 21 Temurin, Maven 3.9, Docker Desktop, PostgreSQL 16, OR-Tools 9.11.
+Ambiente backend di verifica: container `maven:3.9-eclipse-temurin-21` (Linux ARM64 su Docker Desktop WSL2). Stesso container della CI (`ubuntu-latest`, x86_64).
 
 ## Cronologia degli interventi
 
@@ -64,7 +65,21 @@ Ambiente: JDK 21 Temurin, Maven 3.9, Docker Desktop, PostgreSQL 16, OR-Tools 9.1
   `SensitivityPage`. Sweep deterministico sul budget, non persistente,
   senza chiamate LLM.
 
-## Bug trovati e risolti in questa sessione
+### Consolidamento post-audit esterno
+
+- **Parser rule-based riscritto** — `RuleBasedAiAssistant` non gestiva
+  correttamente input realistici ("budget 80k", "1,5 milioni", "nel 2027 ho
+  400k"). Nuova strategia: pattern unificato numero+unità, scarta anni,
+  punteggio di contesto, default esplicito in `missingInformation`.
+  `RuleBasedAiAssistantTest` (15 test).
+- **Docker Compose healthcheck** — backend e frontend hanno ora `healthcheck`
+  e `depends_on: condition: service_healthy`. Rimossa chiave `version:`
+  obsoleta. Stack riavviato e verificato su Windows ARM64: 3 container healthy.
+- **Test backend portabili via Docker** — `scripts/test-backend.ps1` e
+  `scripts/test-backend.sh` eseguono `mvn -B clean test` nel container
+  `maven:3.9-eclipse-temurin-21`, lo stesso della CI. Funziona su ogni OS.
+
+## Bug trovati e risolti
 
 | ID | Descrizione | Fix | Test |
 |---|---|---|---|
@@ -74,6 +89,7 @@ Ambiente: JDK 21 Temurin, Maven 3.9, Docker Desktop, PostgreSQL 16, OR-Tools 9.1
 | E-04 | `ExcludeConstraint` non diagnosticato | nuovo reason code `ESCLUSO_ESPLICITO` | `ExplanationReasonCodeTest` |
 | E-05 | Import CSV: valori malformati a zero | validazione stringente + `requireDouble` | `ImportControllerTest` |
 | E-06 | `@Value` senza initializer (test fuori Spring) | initializer `= 10`, `= 3`, `= 1` | `SensitivityServiceTest` |
+| E-07 | Parser rule-based sbaglia 80k, anni, decimali | pattern unificato + soglia di contesto | `RuleBasedAiAssistantTest` |
 
 ## Criticità aperte
 
@@ -84,7 +100,17 @@ Ambiente: JDK 21 Temurin, Maven 3.9, Docker Desktop, PostgreSQL 16, OR-Tools 9.1
 - **`coefficientScale`** — campo morto in `OptimizationProblem`.
 - **8 vulnerabilità transitive `npm audit`** — non risolvibili senza rompere
   Vite/React; documentate.
-- **Docker `node:25-alpine` vs `ISTRUZIONI-AVVIO.md`** — discrepanza minore.
+- **Spring Boot 3.3.4 EOL** — OSS support scaduto il 2025-06-30.
+  Migrazione a 4.1 richiede Spring 6→7 + Hibernate 6.5→7 + Jakarta EE 10→11
+  (2-4 ore stimate). Dichiarato come debito P1.
+- **Node 20 (CI) e Node 25 (Dockerfile)** — entrambi EOL.
+  Target corretto: Node 24 LTS. Fix pianificato.
+- **Fattore CO₂ elettricità non calibrato** — `DemoDataLoader` usa
+  0.10 kg CO₂/kWh (ipotesi "grid Trentino idro-dominante" non documentata).
+  Riferimento nazionale ISPRA 2024: ~0.233 kg CO₂/kWh. Da documentare in UI
+  o ricalibrare.
+- **React 18 frozen** — non è EOL formale, ma l'ultimo rilascio è aprile 2024.
+  Rischio pratico basso (client-side, statico). P2.
 - **Colori marker Leaflet hardcoded** — non seguono il tema scuro.
 - **FOUC dark mode** al primo caricamento.
 
@@ -92,10 +118,42 @@ Ambiente: JDK 21 Temurin, Maven 3.9, Docker Desktop, PostgreSQL 16, OR-Tools 9.1
 
 | Controllo | Motivo |
 |---|---|
-| `docker compose up -d` end-to-end con health check completo | Verificato `build`, non `up` |
 | Test con provider LLM reale | Richiede credenziali |
 | Import CSV su file esterni reali | Solo dati di test |
 | Verifica tempi su 26 opzioni con timeout reali | Non eseguita in Fase E |
+| Migrazione a Spring Boot 4.1 | Rinviata: rischio regressione in sessione con delivery imminente |
+
+## Nota ambiente locale (Windows on ARM64)
+
+L'host di sviluppo primario è Windows 11 ARM64 (Snapdragon/Qualcomm).
+OR-Tools CP-SAT 9.11 **non distribuisce binari nativi per `win32-aarch64`**:
+i test che istanziano `OrToolsSolver` non possono girare su JVM nativa
+Windows. Errore tipico: `NullPointerException: Resource ortools-win32-aarch64/
+was not found`.
+
+**Effetto**: `mvn test` nativo su Windows ARM64 fallisce con 44 errori
+(tutti i test che toccano il solver), più 1 failure derivato
+(`SensitivityServiceTest`). Non è un bug del progetto, è un limite di
+OR-Tools.
+
+**Soluzione adottata**: i test backend e l'avvio completo si eseguono via
+Docker, dove OR-Tools Linux ARM64 funziona nativamente:
+
+```powershell
+# Avvio completo (qualsiasi OS con Docker)
+docker compose up --build
+
+# Test backend
+.\scripts\test-backend.ps1
+```
+
+Il container `maven:3.9-eclipse-temurin-21` è **lo stesso della CI**,
+quindi l'ambiente è riproducibile su ogni OS.
+
+**Baseline confermata** (Docker, 2026-10-17): **119/119 verdi**.
+
+Il frontend (`npm test`, `npm run build`) funziona nativamente su Node 24,
+senza limiti di architettura.
 
 ## Note
 
@@ -103,3 +161,4 @@ Ambiente: JDK 21 Temurin, Maven 3.9, Docker Desktop, PostgreSQL 16, OR-Tools 9.1
 - Il dataset demo è sintetico.
 - L'integrazione AI è opzionale e non attivata di default.
 - L'analisi di sensibilità è deterministica, non Monte Carlo.
+- L'avvio primario è Docker Compose: nessuna dipendenza da JDK, Maven o Node installati localmente.
