@@ -76,7 +76,7 @@ tepobozza/
 │   ├── src/main/resources/
 │   │   ├── application.yaml
 │   │   └── db/migration/       Migrazioni Flyway (V1, V2)
-│   └── src/test/java/          Test automatici (101 verdi)
+│   └── src/test/java/          Test automatici (119 verdi)
 ├── frontend/
 │   ├── src/pages/              9 pagine: Dashboard, Mappa, Edifici,
 │   │                           Interventi, Scenario, Risultato,
@@ -86,6 +86,9 @@ tepobozza/
 │   ├── src/styles/             Design tokens, base, componenti
 │   ├── src/test/               Test Vitest (19 verdi)
 │   └── Dockerfile
+├── scripts/
+│   ├── test-backend.ps1        Test backend via Docker (Windows)
+│   └── test-backend.sh         Test backend via Docker (Linux/macOS)
 ├── docs/                       Documentazione tecnica
 │   ├── requirements.md
 │   ├── architecture.md
@@ -112,91 +115,66 @@ tepobozza/
 
 ---
 
-## Avvio in sviluppo
+## Avvio
 
-### Prerequisiti
+### Percorso primario: Docker Compose (funziona su qualsiasi OS)
 
-- **Docker Desktop** installato e in esecuzione.
-- **JDK 21** (Temurin raccomandato).
-- **Maven 3.9** o superiore.
-- **Node.js 20+** e **npm**.
-
-Verifica con:
+**Requisiti**: solo Docker Desktop installato e avviato.
 
 ```bash
-docker --version
-java --version
-mvn --version
-node --version
-npm --version
+docker compose up --build
 ```
 
-### 1. Database
+Atteso dopo ~30-40 s:
+- `tepo-db` → `healthy`
+- `tepo-backend` → `healthy` (attende Flyway + OR-Tools)
+- `tepo-frontend` → `healthy`
 
-Da `tepobozza/`:
+Apri `http://localhost:5173`.
+
+**Funziona su**:
+- Windows x86_64
+- **Windows ARM64** (Snapdragon/Qualcomm) — caso in cui `mvn test` nativo
+  non può eseguire OR-Tools perché non esistono binari nativi per
+  `win32-aarch64`. Usa `.\scripts\test-backend.ps1` per i test.
+- Linux x86_64/ARM64
+- macOS Intel/Apple Silicon
+
+Per fermare: `docker compose down` (mantiene il DB). Per cancellare anche il DB: `docker compose down -v`.
+
+### Percorso sviluppo: nativo con hot-reload
+
+Richiede JDK 21, Maven 3.9, Node 24, e PostgreSQL (o solo il container `db`).
+
+**Linux / macOS / Windows x86_64**:
 
 ```bash
+# 1. Database (solo il container)
 docker compose up -d db
-docker compose ps
-```
 
-Atteso: `tepo-db` con stato `running (healthy)`. Ci vogliono 10–15 secondi.
-
-### 2. Backend
-
-**Linux / macOS:**
-
-```bash
+# 2. Backend
 cd backend
 export JAVA_HOME=/path/to/jdk-21
 export DB_URL=jdbc:postgresql://localhost:5432/tepo
 export DB_USERNAME=tepo
 export DB_PASSWORD=tepo
 mvn spring-boot:run -Dspring-boot.run.profiles=demo
-```
 
-**Windows PowerShell:**
-
-```powershell
-cd backend
-$env:JAVA_HOME   = "C:\Program Files\Eclipse Adoptium\jdk-21.0.12.101-hotspot"
-$env:Path        = "$env:JAVA_HOME\bin;$env:Path"
-$env:DB_URL      = "jdbc:postgresql://localhost:5432/tepo"
-$env:DB_USERNAME = "tepo"
-$env:DB_PASSWORD = "tepo"
-mvn spring-boot:run "-Dspring-boot.run.profiles=demo"
-```
-
-Atteso: `Started TepoApplication in X.XXX seconds`.
-
-Il profilo `demo` carica automaticamente il dataset sintetico al primo avvio (10 edifici, 26 interventi). Ai riavvii successivi il dataset non viene duplicato.
-
-Swagger UI: `http://localhost:8080/swagger-ui.html`.
-
-### 3. Frontend
-
-**In un nuovo terminale:**
-
-```bash
+# 3. Frontend (in un nuovo terminale)
 cd frontend
 npm install
 npm run dev
 ```
 
-Apri `http://localhost:5173`.
+Atteso: `Started TepoApplication` + `Local: http://localhost:5173/`.
 
-### 4. Avvio completo con Docker
+Il profilo `demo` carica automaticamente il dataset sintetico al primo avvio (10 edifici, 26 interventi). Ai riavvii successivi il dataset non viene duplicato.
 
-```bash
-docker compose up --build
-```
+Swagger UI: `http://localhost:8080/swagger-ui.html`.
 
-Atteso: 3 container (`tepo-db`, `tepo-backend`, `tepo-frontend`). Apri `http://localhost:5173`.
+### Assistente AI (opzionale)
 
-### 5. Assistente AI (opzionale)
-
-TEPO funziona **completamente senza LLM**. Il motore di default è
-deterministico e rule-based.
+TEPO funziona **completamente senza LLM**. Il motore di default è deterministico e rule-based.
 
 Per attivare un provider LLM compatibile OpenAI:
 
@@ -205,12 +183,10 @@ $env:SPRING_PROFILES_ACTIVE = "demo,llm"
 $env:TEPO_AI_ENABLED        = "true"
 $env:LLM_API_KEY            = "<chiave>"
 $env:LLM_MODEL              = "gpt-4o-mini"
-# opzionale: $env:LLM_API_ENDPOINT = "https://..."
 mvn spring-boot:run
 ```
 
-Se la chiave è assente, ogni chiamata cade nel fallback locale con warning
-espliciti. Nessuna chiave è mai committata. Vedi `docs/ai-integration.md`.
+Se la chiave è assente, ogni chiamata cade nel fallback locale con warning espliciti. Nessuna chiave è mai committata. Vedi `docs/ai-integration.md`.
 
 ---
 
@@ -218,12 +194,28 @@ espliciti. Nessuna chiave è mai committata. Vedi `docs/ai-integration.md`.
 
 ### Backend
 
+**Metodo universale (consigliato, funziona su qualsiasi OS con Docker)**:
+
+```powershell
+.\scripts\test-backend.ps1
+```
+
+```bash
+./scripts/test-backend.sh
+```
+
+Esegue `mvn -B clean test` in `maven:3.9-eclipse-temurin-21`, lo **stesso ambiente della CI**.
+
+**Metodo diretto (Linux / macOS / Windows x86_64 con Java 21 + Maven)**:
+
 ```bash
 cd backend
 mvn clean test
 ```
 
-Atteso: **101 test verdi**.
+**Non funziona su Windows ARM64**: OR-Tools 9.11 non distribuisce binari nativi per `win32-aarch64`.
+
+Atteso: **119 test verdi**.
 
 | Classe | Test | Copertura |
 |---|---|---|
@@ -233,6 +225,7 @@ Atteso: **101 test verdi**.
 | `SolverParityTest` | 4 | Parità OrTools vs BruteForce (istanze fisse) |
 | `SolverEdgeCaseTest` | 8 | Prerequisiti non-candidati, hash canonico, IncludeConstraint |
 | `SolverRandomizedParityTest` | 2 | 50 seed × 3 obiettivi = 150 confronti esaustivi |
+| `GreedyBaselineComparisonTest` | 3 | Solver vs baseline greedy |
 | `MultiObjectiveDiscriminativeTest` | 3 | Obiettivi matematicamente distinti |
 | `DemoMultiObjectiveEmpiricalTest` | 2 | Obiettivi distinti sul dataset demo |
 | `DemoDatasetCoherenceTest` | 7 | Coerenza dataset per vettore |
@@ -241,6 +234,7 @@ Atteso: **101 test verdi**.
 | `SensitivityServiceTest` | 13 | Sweep, stabilità, validazione, determinismo |
 | `ImportControllerTest` | 10 | Validazione import, no scritture silenziose |
 | `LlmAiAssistantTest` | 10 | Provider LLM fake, fallback, validazione |
+| `RuleBasedAiAssistantTest` | 15 | Parser: 80k, anni, decimali, default |
 | `ScenarioControllerTest` | 2 | `@WebMvcTest` |
 
 ### Frontend
@@ -327,7 +321,7 @@ UI dedicata in `/sensitivity`. Endpoint: `POST /api/sensitivity/{id}/budget`.
 **Ipotesi sintetiche dichiarate:**
 
 - Due vettori energetici:
-  - Elettricità (LED, FV): **0.25 EUR/kWh**, **0.10 kg CO2/kWh**;
+  - Elettricità (LED, FV): **0.25 EUR/kWh**, **0.10 kg CO2/kWh** (ipotesi non calibrata, vedi `docs/audit-report.md`);
   - Gas metano (involucro, impianti): **0.10 EUR/kWh**, **0.20 kg CO2/kWh**.
 - Scala: 1:1 per energia (kWh), CO2 (kg), importi (cent);
 - Payback demo: 5–25 anni per la maggior parte degli interventi.

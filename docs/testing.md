@@ -16,7 +16,7 @@ non esistenza di codice.
 
 | Livello | Dove | Cosa copre | Esempi |
 |---|---|---|---|
-| **Unit** | `src/test/java/.../optimization/`, `.../application/`, `.../api/` (Mockito) | Logica pura: solver, spiegazioni, parser, servizi | `OrToolsSolverTest`, `SolverEdgeCaseTest`, `ExplanationReasonCodeTest`, `ImportControllerTest` |
+| **Unit** | `src/test/java/.../optimization/`, `.../application/`, `.../api/` (Mockito) | Logica pura: solver, spiegazioni, parser, servizi | `OrToolsSolverTest`, `SolverEdgeCaseTest`, `ExplanationReasonCodeTest`, `ImportControllerTest`, `RuleBasedAiAssistantTest` |
 | **Integration (H2)** | `@SpringBootTest` + profilo `test` | Persistenza, repository, dataset demo | `DemoDatasetCoherenceTest`, `DemoMultiObjectiveEmpiricalTest` |
 | **Web (MockMvc)** | `@WebMvcTest` | Contratti HTTP, serializzazione, gestione errori | `ScenarioControllerTest` |
 | **Frontend component** | Vitest + Testing Library | Rendering, interazioni utente, mock di rete | `SensitivityPage.test.tsx`, `AiAssistantPanel.test.tsx` |
@@ -43,9 +43,20 @@ per un progetto accademico con UI semplice.
 
 ## Suite backend
 
-**Comando**: `mvn -B clean test` da `backend/`.
+**Comando universale (Docker, funziona su qualsiasi OS)**:
 
-**Totale**: 104 test, tutti verdi (commit `3512621`).
+```powershell
+.\scripts\test-backend.ps1
+```
+
+```bash
+./scripts/test-backend.sh
+```
+
+Esegue `mvn -B clean test` in `maven:3.9-eclipse-temurin-21`, lo stesso
+container della CI.
+
+**Totale**: 119 test, tutti verdi (2026-10-17).
 
 | Classe | Test | Copertura |
 |---|---|---|
@@ -64,6 +75,7 @@ per un progetto accademico con UI semplice.
 | `SensitivityServiceTest` | 13 | Sweep, stabilità, casi limite, validazione, determinismo |
 | `ImportControllerTest` | 10 | Validazione import (Mockito), no scritture silenziose |
 | `LlmAiAssistantTest` | 10 | Provider LLM fake, fallback deterministico, validazione |
+| `RuleBasedAiAssistantTest` | 15 | Parser: 80k, anni (2027), decimali (1,5 milioni), separatori migliaia, contesto debole, default esplicito, objective detection |
 | `ScenarioControllerTest` | 2 | `@WebMvcTest` su `/api/scenarios/{id}/optimize` |
 
 ### Pattern ricorrenti nel backend
@@ -102,7 +114,30 @@ per un progetto accademico con UI semplice.
 - **`act()` warning** su componenti che fanno setState dopo await: accettato
   (falso positivo di React 18 in StrictMode), non causa fallimenti.
 
-## Determinstic seed e riproducibilità
+## Esecuzione test backend su qualsiasi macchina
+
+Tutti i comandi seguenti assumono Docker Desktop avviato.
+
+| OS | Comando |
+|---|---|
+| Windows PowerShell | `.\scripts\test-backend.ps1` |
+| Windows PowerShell (classe singola) | `.\scripts\test-backend.ps1 -Test RuleBasedAiAssistantTest` |
+| Linux / macOS | `./scripts/test-backend.sh` |
+| Linux / macOS (classe singola) | `./scripts/test-backend.sh RuleBasedAiAssistantTest` |
+
+**Perché Docker e non Maven nativo?**
+Il container `maven:3.9-eclipse-temurin-21` è lo stesso usato dalla CI.
+Eseguirlo in locale elimina differenze di ambiente (versione JDK, librerie
+native, tool di sistema) e rende i risultati riproducibili su ogni OS.
+
+**Eccezione nota**: Windows ARM64. OR-Tools 9.11 non fornisce binari nativi
+per `win32-aarch64`. `mvn test` nativo fallisce con 44 errori OR-Tools.
+Usa gli script Docker.
+
+Il frontend non ha questo limite: `npm test` e `npm run build` funzionano
+nativamente su qualsiasi OS con Node 24.
+
+## Deterministic seed e riproducibilità
 
 `RandomProblemGenerator` usa `new Random(seed)` con seed esplicito. Il test
 di parità randomizzato itera su `seed in [1..50]`. Ogni messaggio di
@@ -127,8 +162,9 @@ isolamento.
 | Rete | no | no |
 | `optimization_runs` (audit) | no | no (i test non persistono run) |
 
-I test backend possono essere eseguiti offline. L'unica dipendenza esterna
-è Maven Central per il primo download delle dipendenze.
+I test backend possono essere eseguiti offline (una volta scaricate le
+dipendenze Maven nel container). L'unica dipendenza esterna è il registry
+Maven per il primo `dependency:go-offline`.
 
 ## Warning benigni
 
@@ -141,9 +177,9 @@ a modifiche:
 2. **3 repository Maven non raggiungibili**: `Could not transfer metadata from
    flyway-repo / spring-release / flyway-community-db-support`. Rete aziendale
    o firewall. Non impatta la risoluzione delle dipendenze.
-3. **JaCoCo bundle mismatch**: `Classes in bundle 'TEPO Backend' do not match
-   with execution data`. Compare dopo `mvn spring-boot:run` seguito da `mvn test`
-   senza `clean`. Si risolve con `mvn clean test`.
+3. **JaCoCo + Java 25**: se si esegue `mvn test` con JVM > 22 nativa, si
+   osserva `Unsupported class file major version 69`. Il container
+   `maven:3.9-eclipse-temurin-21` non ha questo problema.
 
 ## Cosa NON è coperto
 
@@ -178,12 +214,15 @@ a modifiche:
 ## Comandi di verifica rapida
 
 ```powershell
-# Backend — tutti i test
+# Backend — tutti i test (Docker, universale)
+.\scripts\test-backend.ps1
+
+# Backend — una sola classe (Docker, universale)
+.\scripts\test-backend.ps1 -Test GreedyBaselineComparisonTest
+
+# Backend — nativo, solo se JDK 21 + Maven + architettura compatibile
 cd backend
 mvn -B clean test
-
-# Backend — una sola classe
-mvn -B test -Dtest=GreedyBaselineComparisonTest
 
 # Frontend — tutti i test
 cd frontend
@@ -196,16 +235,17 @@ npx tsc --noEmit
 npm run build
 ```
 
-Esiti attesi al commit `3512621`:
+Esiti attesi (2026-10-17):
 
-- `Tests run: 104, Failures: 0, Errors: 0, Skipped: 0` + `BUILD SUCCESS`
+- `Tests run: 119, Failures: 0, Errors: 0, Skipped: 0` + `BUILD SUCCESS`
 - `Test Files  5 passed`, `Tests  19 passed`
 - `tsc` senza output
 - `vite build` con `✓ built in …`
 
 ## Riferimenti
 
-- `docs/collaudo.md` — collaudo manuale (Sessioni 1, 2, 3) con valori osservati.
+- `docs/collaudo.md` — collaudo manuale con valori osservati.
 - `docs/traceability.md` — matrice requisito → componente → test.
 - `docs/audit-report.md` — bug storici e fix con test associato.
 - `docs/optimization.md` — formulazione del solver e reason code.
+- `scripts/test-backend.ps1`, `scripts/test-backend.sh` — script portabili.
