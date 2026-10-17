@@ -130,7 +130,7 @@ Atteso dopo ~30-40 s:
 - `tepo-backend` → `healthy` (attende Flyway + OR-Tools)
 - `tepo-frontend` → `healthy`
 
-Apri `http://localhost:5173`.
+Apri [http://localhost:5173](http://localhost:5173).
 
 **Funziona su**:
 - Windows x86_64
