@@ -1,13 +1,13 @@
 # TEPO — Trento Energy Portfolio Optimizer
 
-[![CI](https://github.com/T-E-P-O/TEPO/actions/workflows/ci.yml/badge.svg)](https://github.com/T-E-P-O/TEPO/actions)
+[![CI](https://github.com/T-E-P-O/tepobozza/actions/workflows/ci.yml/badge.svg)](https://github.com/T-E-P-O/TEPO/actions)
 [![Render](https://img.shields.io/badge/Render-Live%20Demo-46E3B7?logo=render&logoColor=white)](https://tepo.onrender.com)
 
 Decision Support System per la selezione ottima di portafogli di interventi di efficientamento energetico sul patrimonio edilizio del Comune di Trento.
 
 - **Principio architetturale:** *L'AI propone. L'utente confronta. Il Comune decide.*
 - **Dataset:** DEMO — dati sintetici (100 edifici, 300 interventi, 6 tipologie). Nessun dato reale del Comune di Trento è incluso.
-- **Live Demo Cloud:** [https://tepo.onrender.com](https://tepo.onrender.com)
+- **Live Demo Cloud:** [https://tepobozza.onrender.com](https://tepo.onrender.com)
 - **Repository Deliverable D1:** [https://github.com/T-E-P-O/D1](https://github.com/T-E-P-O/D1)
 - **Deploy Blueprint:** Specificato in `render.yaml` per deployment automatico su [onrender.com](https://onrender.com).
 
